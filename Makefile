@@ -15,10 +15,10 @@ migrate: ## Run Alembic migrations
 	$(COMPOSE) run --rm api alembic upgrade head
 
 seed: ## Populate DB with test data
-	$(COMPOSE) run --rm api python seed.py
+	$(COMPOSE) run --rm api python -m api.seed
 
 test: ## Run API tests
-	$(COMPOSE) run --rm api pytest tests/ -v
+	$(COMPOSE) run --rm api pytest tests/api/ -v
 
 logs: ## Tail logs
 	$(COMPOSE) logs -f
