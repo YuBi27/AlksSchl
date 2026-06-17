@@ -23,9 +23,9 @@ class AuthMiddleware(BaseMiddleware):
         data["user_data"] = user_data
 
         if user.id in self.admin_ids:
-            data["user_data"]["role"] = "admin"
+            data["user_data"] = {**user_data, "role": "admin", "status": "active"}
 
-        status = user_data.get("status", "pending")
+        status = data["user_data"].get("status", "pending")
         if status in ("pending", "banned", "inactive"):
             data["blocked_status"] = status
 

@@ -33,6 +33,12 @@ async def on_full_name(message: Message, widget: TextInput, manager: DialogManag
 
 
 async def on_birth_date(message: Message, widget: TextInput, manager: DialogManager, value: str) -> None:
+    from datetime import datetime as _dt
+    try:
+        _dt.strptime(value, "%d.%m.%Y")
+    except ValueError:
+        await message.answer("❌ Невірний формат дати. Введіть у форматі ДД.ММ.РРРР (наприклад, 15.03.2005):")
+        return
     manager.dialog_data["birth_date_str"] = value
     await manager.switch_to(StudentRegSG.phone)
 

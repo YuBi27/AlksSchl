@@ -26,9 +26,7 @@ async def create_invite_code(
 
 async def use_invite_code(db: AsyncSession, code: str, user_id: int) -> Optional[InviteCode]:
     invite = await get_invite_code(db, code)
-    if not invite or invite.used_by is not None:
-        return None
-    if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
+    if not invite or not is_code_valid(invite):
         return None
     invite.used_by = user_id
     invite.used_at = datetime.now(timezone.utc)
