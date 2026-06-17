@@ -5,7 +5,7 @@
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from api.models.models import Base, User, StudentProfile, TeacherProfile, InviteCode, Group, StudentGroup
+from api.models.models import Base, User, StudentProfile, TeacherProfile, InviteCode, Group, StudentGroup, Schedule
 from api.config import settings
 
 engine = create_async_engine(settings.database_url)
@@ -72,6 +72,21 @@ STUDENT_GROUP_ASSIGNMENTS = [
     (20000008, "Група B1", "B1"),
     (20000009, "Speaking Club", "B2"),
     (20000010, "Speaking Club", "B2"),
+]
+
+# (group_name, day_of_week, start_time_str, duration_min)
+# day_of_week: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+SCHEDULE_TEMPLATES = [
+    ("Новачки",      1, "17:00", 60),   # Tuesday
+    ("Новачки",      4, "17:00", 60),   # Friday
+    ("Група A1",     1, "18:30", 60),   # Tuesday
+    ("Група A1",     3, "18:30", 60),   # Thursday
+    ("Група A2",     2, "17:00", 60),   # Wednesday
+    ("Група A2",     4, "17:00", 60),   # Friday
+    ("Група B1",     1, "19:00", 90),   # Tuesday
+    ("Група B1",     3, "19:00", 90),   # Thursday
+    ("Speaking Club",0, "11:00", 90),   # Monday
+    ("Speaking Club",3, "11:00", 90),   # Thursday
 ]
 
 
@@ -185,6 +200,31 @@ async def seed() -> None:
             print(f"  ✅ Assigned {tg_id} → {group_name}")
 
         await db.commit()
+
+        # --- Schedules ---
+        from api.crud.schedules import create_schedule, generate_lessons_for_schedule, _parse_time
+        for group_name, dow, start_t, dur in SCHEDULE_TEMPLATES:
+            grp_result = await db.execute(select(Group).where(Group.name == group_name))
+            grp = grp_result.scalar_one_or_none()
+            if not grp:
+                print(f"  ⚠ Group '{group_name}' not found, skipping schedule")
+                continue
+            existing = await db.execute(
+                select(Schedule).where(
+                    Schedule.group_id == grp.id,
+                    Schedule.day_of_week == dow,
+                )
+            )
+            if existing.scalar_one_or_none():
+                print(f"  ⏭ Schedule {group_name} day={dow} already exists, skipping")
+                continue
+            t = _parse_time(start_t)
+            sched = Schedule(group_id=grp.id, day_of_week=dow, start_time=t, duration_min=dur)
+            db.add(sched)
+            await db.flush()
+            count = await generate_lessons_for_schedule(db, sched)
+            print(f"  ✅ Schedule: {group_name} day={dow} {start_t} → {count} lessons")
+
         print("✅ Seed complete!")
 
 
