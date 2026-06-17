@@ -91,20 +91,25 @@ async def on_confirm_import(
     if not rows:
         await callback.answer("Немає даних для імпорту.", show_alert=True)
         return
-    result = await api_client.import_students(rows)
-    text = (
-        f"✅ Імпорт завершено!\n\n"
-        f"Додано: {result['created']}\n"
-        f"Пропущено (дублікати): {result['skipped']}"
-    )
-    if result.get("errors"):
-        text += f"\n⚠️ Попередження: {len(result['errors'])}"
+    try:
+        result = await api_client.import_students(rows)
+        text = (
+            f"✅ Імпорт завершено!\n\n"
+            f"Додано: {result.get('created', 0)}\n"
+            f"Пропущено (дублікати): {result.get('skipped', 0)}"
+        )
+        if result.get("errors"):
+            text += f"\n⚠️ Попередження: {len(result['errors'])}"
+    except Exception as e:
+        text = f"❌ Помилка імпорту: {e}"
     await callback.message.edit_text(text, reply_markup=None)
     await callback.answer()
 
 
 @router.callback_query(F.data == "excel_import:cancel")
-async def on_cancel_import(callback: CallbackQuery) -> None:
+async def on_cancel_import(callback: CallbackQuery, user_data: dict) -> None:
+    if user_data.get("role") != "admin":
+        return
     _pending_imports.pop(callback.from_user.id, None)
     await callback.message.edit_text("❌ Імпорт скасовано.", reply_markup=None)
     await callback.answer()
