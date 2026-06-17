@@ -1,6 +1,6 @@
 from datetime import datetime, date, time
 from typing import Literal, Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator, Field
 
 
 class AuthStartRequest(BaseModel):
@@ -150,9 +150,9 @@ class ImportResult(BaseModel):
 
 class ScheduleCreate(BaseModel):
     group_id: int
-    day_of_week: int  # 0=Mon, 6=Sun
-    start_time: str   # "HH:MM" format, interpreted as Europe/Kyiv
-    duration_min: int = 60
+    day_of_week: int = Field(ge=0, le=6)  # 0=Mon, 6=Sun
+    start_time: str = Field(pattern=r"^\d{2}:\d{2}$")   # "HH:MM" format, interpreted as Europe/Kyiv
+    duration_min: int = Field(default=60, gt=0)
 
 
 class ScheduleRead(BaseModel):
@@ -165,12 +165,26 @@ class ScheduleRead(BaseModel):
     is_active: bool
     created_at: Optional[datetime] = None
 
+    @field_validator("start_time", mode="before")
+    @classmethod
+    def format_start_time(cls, v):
+        if isinstance(v, time):
+            return v.strftime("%H:%M")
+        return v
+
 
 class LessonCreate(BaseModel):
     group_id: int
     scheduled_at: datetime   # UTC-aware ISO string
     duration_min: int = 60
     zoom_link: Optional[str] = None
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def must_be_aware(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            raise ValueError("scheduled_at must be timezone-aware (UTC)")
+        return v
 
 
 class LessonRead(BaseModel):
@@ -190,9 +204,9 @@ class LessonRead(BaseModel):
 
 class LessonUpdate(BaseModel):
     scheduled_at: Optional[datetime] = None
-    duration_min: Optional[int] = None
-    zoom_link: Optional[str] = None
-    status: Optional[str] = None
+    duration_min: Optional[int] = Field(default=None, gt=0)
+    zoom_link: Optional[str] = Field(default=None, max_length=512)
+    status: Optional[Literal["scheduled", "completed", "cancelled"]] = None
 
 
 class ReminderUpdate(BaseModel):
