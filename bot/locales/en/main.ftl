@@ -106,3 +106,17 @@ admin-group-deleted = ✅ Group deleted.
 # --- Admin: import ---
 admin-import-success = ✅ Import complete! Added: { $created }, skipped: { $skipped }.
 admin-import-error = ❌ Import error.
+
+# --- Schedule: admin ---
+admin-schedule-title = 📅 Schedule
+admin-schedule-no-lessons = No lessons scheduled.
+admin-lesson-cancelled = ✅ Lesson cancelled.
+admin-template-created = ✅ Template created, lessons scheduled.
+
+# --- Schedule: student ---
+student-schedule-title = 📅 Your schedule
+student-schedule-empty = No upcoming lessons scheduled.
+
+# --- Reminders ---
+reminder-lesson-title = ⏰ Lesson reminder!
+reminder-lesson-footer = Enjoy your lesson! 🎓

@@ -106,3 +106,17 @@ admin-group-deleted = ✅ Групу видалено.
 # --- Адмін: імпорт ---
 admin-import-success = ✅ Імпорт завершено! Додано: { $created }, пропущено: { $skipped }.
 admin-import-error = ❌ Помилка імпорту.
+
+# --- Розклад: адмін ---
+admin-schedule-title = 📅 Розклад
+admin-schedule-no-lessons = Занять не заплановано.
+admin-lesson-cancelled = ✅ Заняття скасовано.
+admin-template-created = ✅ Шаблон створено, заняття заплановані.
+
+# --- Розклад: учень ---
+student-schedule-title = 📅 Ваш розклад
+student-schedule-empty = Найближчих занять не заплановано.
+
+# --- Нагадування ---
+reminder-lesson-title = ⏰ Нагадування про заняття!
+reminder-lesson-footer = Гарного заняття! 🎓

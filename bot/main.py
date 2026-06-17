@@ -16,7 +16,11 @@ from bot.middlewares.throttling import ThrottlingMiddleware
 from bot.handlers import start, blocked
 from bot.dialogs.registration import language, agreements, student, teacher
 from bot.dialogs.admin import applications, menu, students as admin_students, groups as admin_groups
+from bot.dialogs.admin import schedule as admin_schedule
 from bot.dialogs.admin.excel_import import router as excel_router
+from bot.dialogs.student import menu as student_menu, schedule as student_schedule
+from bot.tasks.reminders import reminder_loop
+from bot.tasks.schedule_generator import schedule_generator_loop
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,10 +55,16 @@ async def main():
     dp.include_router(menu.dialog)
     dp.include_router(admin_students.dialog)
     dp.include_router(admin_groups.dialog)
+    dp.include_router(admin_schedule.dialog)
+    dp.include_router(student_menu.dialog)
+    dp.include_router(student_schedule.dialog)
 
     setup_dialogs(dp)
 
     dp["bot"] = bot
+
+    asyncio.create_task(reminder_loop(bot, api_client))
+    asyncio.create_task(schedule_generator_loop(api_client))
 
     try:
         logger.info("Bot started")
