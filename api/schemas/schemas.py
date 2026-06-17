@@ -1,6 +1,6 @@
 from datetime import datetime, date, time
 from typing import Literal, Optional
-from pydantic import BaseModel, ConfigDict, field_validator, Field
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator, Field
 
 
 class AuthStartRequest(BaseModel):
@@ -213,3 +213,105 @@ class ReminderUpdate(BaseModel):
     reminder_24h_sent: Optional[bool] = None
     reminder_2h_sent: Optional[bool] = None
     reminder_30m_sent: Optional[bool] = None
+
+
+# --- Attendance ---
+
+class AttendanceUpsert(BaseModel):
+    lesson_id: int
+    student_user_id: int
+    status: Literal["present", "late", "absent", "excused"]
+
+
+class AttendanceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    lesson_id: int
+    student_user_id: int
+    status: str
+    created_at: Optional[datetime] = None
+
+
+# --- Homework ---
+
+class HomeworkCreate(BaseModel):
+    teacher_id: int
+    group_id: Optional[int] = None
+    student_user_id: Optional[int] = None
+    title: str = Field(max_length=256)
+    description: str
+    due_at: datetime
+
+    @field_validator("due_at")
+    @classmethod
+    def must_be_aware(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            raise ValueError("due_at must be timezone-aware (UTC)")
+        return v
+
+    @model_validator(mode="after")
+    def exactly_one_target(self) -> "HomeworkCreate":
+        if (self.group_id is None) == (self.student_user_id is None):
+            raise ValueError("Exactly one of group_id or student_user_id must be set")
+        return self
+
+
+class HomeworkUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=256)
+    description: Optional[str] = None
+    due_at: Optional[datetime] = None
+
+
+class HomeworkRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    teacher_id: Optional[int] = None
+    group_id: Optional[int] = None
+    student_user_id: Optional[int] = None
+    title: str
+    description: str
+    due_at: datetime
+    created_at: Optional[datetime] = None
+
+
+# --- HomeworkGrade ---
+
+class HomeworkGradeCreate(BaseModel):
+    student_user_id: int
+    graded_by: Optional[int] = None
+    grade_text: str = Field(max_length=512)
+
+
+class HomeworkGradeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    homework_id: int
+    student_user_id: int
+    graded_by: Optional[int] = None
+    grade_text: str
+    graded_at: Optional[datetime] = None
+
+
+# --- TeacherNote ---
+
+class TeacherNoteCreate(BaseModel):
+    teacher_id: Optional[int] = None
+    student_user_id: Optional[int] = None
+    lesson_id: Optional[int] = None
+    text: str
+
+    @model_validator(mode="after")
+    def at_least_one_target(self) -> "TeacherNoteCreate":
+        if self.student_user_id is None and self.lesson_id is None:
+            raise ValueError("At least one of student_user_id or lesson_id must be set")
+        return self
+
+
+class TeacherNoteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    teacher_id: Optional[int] = None
+    student_user_id: Optional[int] = None
+    lesson_id: Optional[int] = None
+    text: str
+    created_at: Optional[datetime] = None
