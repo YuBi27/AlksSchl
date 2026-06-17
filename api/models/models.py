@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from typing import Optional
 from sqlalchemy import (
-    String, BigInteger, ForeignKey, DateTime, Date, Text, Integer, JSON
+    String, BigInteger, ForeignKey, DateTime, Date, Text, Integer, JSON, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -52,6 +52,7 @@ class StudentProfile(Base):
     study_format: Mapped[Optional[str]] = mapped_column(String(16))
     extra_info: Mapped[Optional[str]] = mapped_column(Text)
     notion_link: Mapped[Optional[str]] = mapped_column(String(512))
+    english_level: Mapped[Optional[str]] = mapped_column(String(8))
 
     user: Mapped["User"] = relationship(back_populates="student_profile")
 
@@ -107,3 +108,40 @@ class AdminActionLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class Group(Base):
+    __tablename__ = "groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    level: Mapped[Optional[str]] = mapped_column(String(8))
+    teacher_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    student_groups: Mapped[list["StudentGroup"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan"
+    )
+
+
+class StudentGroup(Base):
+    __tablename__ = "student_groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    )
+    enrolled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (UniqueConstraint("user_id", "group_id"),)
+
+    group: Mapped["Group"] = relationship(back_populates="student_groups")
