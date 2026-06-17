@@ -18,7 +18,8 @@ async def cmd_start(message: Message, user_data: dict, dialog_manager: DialogMan
         return
 
     if status == "active":
-        await message.answer("👋 Ласкаво просимо! Головне меню буде додано в наступних версіях.")
+        from bot.dialogs.student.menu import StudentMenuSG
+        await dialog_manager.start(StudentMenuSG.main, mode=StartMode.RESET_STACK)
         return
 
     await dialog_manager.start(LanguageSG.select, mode=StartMode.RESET_STACK)
