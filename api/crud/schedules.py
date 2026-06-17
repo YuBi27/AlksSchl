@@ -1,7 +1,7 @@
 from datetime import datetime, date, time, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.models.models import Schedule, Lesson
 
@@ -67,7 +67,7 @@ async def get_schedules_by_group(
     result = await db.execute(
         select(Schedule).where(
             Schedule.group_id == group_id,
-            Schedule.is_active == True,
+            Schedule.is_active.is_(True),
         )
     )
     return list(result.scalars().all())
@@ -88,7 +88,7 @@ async def create_schedule(
         duration_min=duration_min,
     )
     db.add(schedule)
-    await db.commit()
+    await db.flush()
     await db.refresh(schedule)
     await generate_lessons_for_schedule(db, schedule)
     return schedule
@@ -108,6 +108,14 @@ async def update_schedule(
         setattr(schedule, key, value)
     await db.commit()
     await db.refresh(schedule)
+    # Cancel stale future lessons before regenerating
+    now_utc = datetime.now(tz=ZoneInfo("UTC"))
+    await db.execute(
+        update(Lesson)
+        .where(Lesson.schedule_id == schedule_id, Lesson.scheduled_at > now_utc)
+        .values(status="cancelled")
+    )
+    await db.commit()
     # Regenerate future lessons only
     await generate_lessons_for_schedule(db, schedule)
     return schedule
@@ -117,6 +125,12 @@ async def delete_schedule(db: AsyncSession, schedule_id: int) -> bool:
     schedule = await get_schedule(db, schedule_id)
     if not schedule:
         return False
+    now_utc = datetime.now(tz=ZoneInfo("UTC"))
+    await db.execute(
+        update(Lesson)
+        .where(Lesson.schedule_id == schedule_id, Lesson.scheduled_at > now_utc)
+        .values(status="cancelled")
+    )
     schedule.is_active = False
     await db.commit()
     return True
@@ -125,7 +139,7 @@ async def delete_schedule(db: AsyncSession, schedule_id: int) -> bool:
 async def generate_all_upcoming(db: AsyncSession) -> int:
     """Generate lessons for all active schedules. Called by weekly bot task."""
     result = await db.execute(
-        select(Schedule).where(Schedule.is_active == True)
+        select(Schedule).where(Schedule.is_active.is_(True))
     )
     schedules = list(result.scalars().all())
     total = 0

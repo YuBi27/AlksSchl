@@ -44,6 +44,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['schedule_id'], ['schedules.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('schedule_id', 'scheduled_at', name='uq_lessons_schedule_scheduled_at'),
     )
     op.create_index('idx_lessons_scheduled_at', 'lessons', ['scheduled_at'])
     op.create_index('idx_lessons_group_id', 'lessons', ['group_id'])
