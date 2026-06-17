@@ -30,12 +30,20 @@ async def on_groups(
     await manager.start(GroupMgmtSG.list_view, mode=StartMode.RESET_STACK)
 
 
+async def on_schedule(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.schedule import ScheduleMgmtSG
+    await manager.start(ScheduleMgmtSG.list_groups, mode=StartMode.RESET_STACK)
+
+
 dialog = Dialog(
     Window(
         Const("🏫 Адмін-панель\n\nОберіть розділ:"),
         Button(Const("📋 Заявки"), id="btn_applications", on_click=on_applications),
         Button(Const("👥 Учні"), id="btn_students", on_click=on_students),
         Button(Const("🏫 Групи"), id="btn_groups", on_click=on_groups),
+        Button(Const("📅 Розклад"), id="btn_schedule", on_click=on_schedule),
         state=AdminMenuSG.main,
     )
 )
