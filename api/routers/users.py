@@ -98,3 +98,11 @@ async def create_teacher(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return await create_teacher_profile(db, user_id=user_id, **body.model_dump())
+
+
+@router.get("/{user_id}/teacher-profile", response_model=TeacherProfileOut)
+async def get_teacher(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    profile = await get_teacher_profile(db, user_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return profile
