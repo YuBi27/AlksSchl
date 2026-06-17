@@ -5,7 +5,7 @@
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from api.models.models import Base, User, StudentProfile, TeacherProfile, InviteCode
+from api.models.models import Base, User, StudentProfile, TeacherProfile, InviteCode, Group, StudentGroup
 from api.config import settings
 
 engine = create_async_engine(settings.database_url)
@@ -49,6 +49,29 @@ STUDENTS = [
     {"telegram_id": 20000008, "username": "student_08", "full_name": "Бойко Вікторія Олександрівна", "phone": "+380991234508", "study_format": "hybrid"},
     {"telegram_id": 20000009, "username": "student_09", "full_name": "Гриценко Назар Петрович", "phone": "+380991234509", "study_format": "online"},
     {"telegram_id": 20000010, "username": "student_10", "full_name": "Ткаченко Аліна Василівна", "phone": "+380991234510", "study_format": "offline"},
+]
+
+GROUPS = [
+    {"name": "Новачки", "level": "novice"},
+    {"name": "Група A1", "level": "A1"},
+    {"name": "Група A2", "level": "A2"},
+    {"name": "Група B1", "level": "B1"},
+    {"name": "Speaking Club", "level": "B2"},
+    {"name": "Група C1", "level": "C1"},
+]
+
+# (student_telegram_id, group_name, english_level)
+STUDENT_GROUP_ASSIGNMENTS = [
+    (20000001, "Новачки", "novice"),
+    (20000002, "Новачки", "novice"),
+    (20000003, "Група A1", "A1"),
+    (20000004, "Група A1", "A1"),
+    (20000005, "Група A2", "A2"),
+    (20000006, "Група A2", "A2"),
+    (20000007, "Група B1", "B1"),
+    (20000008, "Група B1", "B1"),
+    (20000009, "Speaking Club", "B2"),
+    (20000010, "Speaking Club", "B2"),
 ]
 
 
@@ -118,6 +141,48 @@ async def seed() -> None:
             invite = InviteCode(code="TEST-INVITE-2024", created_by=None, role="teacher", expires_at=None)
             db.add(invite)
             print("  ✅ Invite code: TEST-INVITE-2024")
+
+        await db.commit()
+
+        # --- Groups ---
+        for g_data in GROUPS:
+            result = await db.execute(select(Group).where(Group.name == g_data["name"]))
+            if result.scalar_one_or_none():
+                print(f"  ⏭ Group '{g_data['name']}' already exists, skipping")
+                continue
+            group = Group(name=g_data["name"], level=g_data["level"])
+            db.add(group)
+            print(f"  ✅ Group: {g_data['name']}")
+        await db.flush()
+
+        # --- Student → Group assignments ---
+        for tg_id, group_name, level in STUDENT_GROUP_ASSIGNMENTS:
+            user_result = await db.execute(select(User).where(User.telegram_id == tg_id))
+            user = user_result.scalar_one_or_none()
+            group_result = await db.execute(select(Group).where(Group.name == group_name))
+            group = group_result.scalar_one_or_none()
+            if not user or not group:
+                continue
+
+            sg_result = await db.execute(
+                select(StudentGroup).where(
+                    StudentGroup.user_id == user.id,
+                    StudentGroup.group_id == group.id,
+                )
+            )
+            if sg_result.scalar_one_or_none():
+                continue
+
+            # Set english_level on profile
+            profile_result = await db.execute(
+                select(StudentProfile).where(StudentProfile.user_id == user.id)
+            )
+            profile = profile_result.scalar_one_or_none()
+            if profile and not profile.english_level:
+                profile.english_level = level
+
+            db.add(StudentGroup(user_id=user.id, group_id=group.id))
+            print(f"  ✅ Assigned {tg_id} → {group_name}")
 
         await db.commit()
         print("✅ Seed complete!")
