@@ -1,22 +1,24 @@
 .PHONY: up down build migrate seed test logs
 
+COMPOSE = docker compose -f docker-compose.yml -f docker-compose.dev.yml
+
 up: ## Start all services
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+	$(COMPOSE) up -d
 
 down: ## Stop all services
-	docker compose down
+	$(COMPOSE) down
 
 build: ## Rebuild images
-	docker compose build
+	$(COMPOSE) build
 
 migrate: ## Run Alembic migrations
-	docker compose run --rm api alembic upgrade head
+	$(COMPOSE) run --rm api alembic upgrade head
 
 seed: ## Populate DB with test data
-	docker compose run --rm api python seed.py
+	$(COMPOSE) run --rm api python seed.py
 
 test: ## Run API tests
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm api pytest tests/ -v
+	$(COMPOSE) run --rm api pytest tests/ -v
 
 logs: ## Tail logs
-	docker compose logs -f
+	$(COMPOSE) logs -f
