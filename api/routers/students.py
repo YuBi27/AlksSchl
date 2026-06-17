@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.db import get_db
-from api.schemas.schemas import StudentLevelUpdate, StudentGroupsUpdate, ImportRow, ImportResult
+from api.schemas.schemas import StudentLevelUpdate, StudentGroupsUpdate, ImportRow, ImportResult, StudentListItem
 from api.crud.students import (
     list_students, get_student, set_student_level,
     set_student_groups, remove_from_group, soft_delete_student,
@@ -20,7 +20,7 @@ async def import_students_endpoint(
     return result
 
 
-@router.get("")
+@router.get("", response_model=list[StudentListItem])
 async def list_students_endpoint(
     search: Optional[str] = None,
     group_id: Optional[int] = None,
@@ -33,7 +33,7 @@ async def list_students_endpoint(
     return await list_students(db, search, group_id, level, status, offset, limit)
 
 
-@router.get("/{user_id}")
+@router.get("/{user_id}", response_model=StudentListItem)
 async def get_student_endpoint(user_id: int, db: AsyncSession = Depends(get_db)):
     student = await get_student(db, user_id)
     if not student:
@@ -54,6 +54,9 @@ async def set_level_endpoint(
 async def assign_groups_endpoint(
     user_id: int, data: StudentGroupsUpdate, db: AsyncSession = Depends(get_db)
 ):
+    student = await get_student(db, user_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
     await set_student_groups(db, user_id, data.group_ids)
 
 
