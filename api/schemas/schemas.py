@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, time
 from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict
 
@@ -146,3 +146,56 @@ class ImportResult(BaseModel):
     created: int
     skipped: int
     errors: list[str] = []
+
+
+class ScheduleCreate(BaseModel):
+    group_id: int
+    day_of_week: int  # 0=Mon, 6=Sun
+    start_time: str   # "HH:MM" format, interpreted as Europe/Kyiv
+    duration_min: int = 60
+
+
+class ScheduleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    group_id: int
+    day_of_week: int
+    start_time: str
+    duration_min: int
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+
+class LessonCreate(BaseModel):
+    group_id: int
+    scheduled_at: datetime   # UTC-aware ISO string
+    duration_min: int = 60
+    zoom_link: Optional[str] = None
+
+
+class LessonRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    group_id: int
+    schedule_id: Optional[int] = None
+    scheduled_at: datetime
+    duration_min: int
+    zoom_link: Optional[str] = None
+    status: str
+    reminder_24h_sent: bool = False
+    reminder_2h_sent: bool = False
+    reminder_30m_sent: bool = False
+    created_at: Optional[datetime] = None
+
+
+class LessonUpdate(BaseModel):
+    scheduled_at: Optional[datetime] = None
+    duration_min: Optional[int] = None
+    zoom_link: Optional[str] = None
+    status: Optional[str] = None
+
+
+class ReminderUpdate(BaseModel):
+    reminder_24h_sent: Optional[bool] = None
+    reminder_2h_sent: Optional[bool] = None
+    reminder_30m_sent: Optional[bool] = None
