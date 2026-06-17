@@ -132,6 +132,13 @@ async def on_back_to_list(
     await manager.switch_to(StudentMgmtSG.list_view)
 
 
+async def on_back_to_menu(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.menu import AdminMenuSG
+    await manager.start(AdminMenuSG.main, mode=StartMode.RESET_STACK)
+
+
 async def on_level_selected(
     callback: CallbackQuery,
     widget: Any,
@@ -148,8 +155,11 @@ async def on_level_selected(
 async def get_groups_for_select(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     groups = await api_client.get_groups()
+    user_id = dialog_manager.dialog_data.get("selected_student_id", 0)
+    student = await api_client.get_student(user_id)
+    current_groups = ", ".join(student.get("group_names", [])) or "Немає"
     items = [(str(g["id"]), g["name"]) for g in groups]
-    return {"groups": items}
+    return {"groups": items, "current_groups": current_groups}
 
 
 async def on_save_groups(
@@ -203,6 +213,7 @@ dialog = Dialog(
             width=1,
             height=10,
         ),
+        Button(Const("← Меню"), id="back_menu_s", on_click=on_back_to_menu),
         state=StudentMgmtSG.list_view,
         getter=get_students_list,
     ),
@@ -241,7 +252,7 @@ dialog = Dialog(
         getter=lambda **_: {"levels": LEVELS},
     ),
     Window(
-        Const("👥 Оберіть групи (можна кілька):"),
+        Format("👥 Поточні групи: {current_groups}\n\nОберіть нові групи (можна кілька):"),
         Multiselect(
             Format("✅ {item[1]}"),
             Format("☑️ {item[1]}"),

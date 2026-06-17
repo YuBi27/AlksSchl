@@ -10,24 +10,33 @@ async def get_group(db: AsyncSession, group_id: int) -> Optional[Group]:
 
 
 async def get_all_groups(db: AsyncSession) -> list[dict]:
-    result = await db.execute(select(Group))
-    groups = list(result.scalars().all())
-    out = []
-    for g in groups:
-        count_result = await db.execute(
-            select(func.count(StudentGroup.id)).where(StudentGroup.group_id == g.id)
+    stmt = (
+        select(
+            Group.id,
+            Group.name,
+            Group.level,
+            Group.teacher_id,
+            Group.description,
+            Group.created_at,
+            func.count(StudentGroup.id).label("student_count"),
         )
-        count = count_result.scalar_one()
-        out.append({
-            "id": g.id,
-            "name": g.name,
-            "level": g.level,
-            "teacher_id": g.teacher_id,
-            "description": g.description,
-            "created_at": g.created_at,
-            "student_count": count,
-        })
-    return out
+        .outerjoin(StudentGroup, StudentGroup.group_id == Group.id)
+        .group_by(Group.id)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "level": r.level,
+            "teacher_id": r.teacher_id,
+            "description": r.description,
+            "created_at": r.created_at,
+            "student_count": r.student_count,
+        }
+        for r in rows
+    ]
 
 
 async def create_group(

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.db import get_db
 from api.schemas.schemas import GroupCreate, GroupRead, GroupUpdate
@@ -6,6 +7,7 @@ from api.crud.groups import (
     get_all_groups, create_group, get_group,
     update_group, delete_group, get_group_students,
 )
+from api.models.models import StudentGroup
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -31,11 +33,15 @@ async def create_group_endpoint(
     }
 
 
-@router.get("/{group_id}")
+@router.get("/{group_id}", response_model=GroupRead)
 async def get_group_endpoint(group_id: int, db: AsyncSession = Depends(get_db)):
     group = await get_group(db, group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+    count_result = await db.execute(
+        select(func.count(StudentGroup.id)).where(StudentGroup.group_id == group_id)
+    )
+    student_count = count_result.scalar_one()
     return {
         "id": group.id,
         "name": group.name,
@@ -43,7 +49,7 @@ async def get_group_endpoint(group_id: int, db: AsyncSession = Depends(get_db)):
         "teacher_id": group.teacher_id,
         "description": group.description,
         "created_at": group.created_at,
-        "student_count": 0,
+        "student_count": student_count,
     }
 
 

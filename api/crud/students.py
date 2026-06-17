@@ -49,27 +49,32 @@ async def list_students(
     result = await db.execute(query)
     rows = result.all()
 
-    out = []
-    for user, profile in rows:
-        groups_result = await db.execute(
-            select(Group.name)
-            .join(StudentGroup, StudentGroup.group_id == Group.id)
-            .where(StudentGroup.user_id == user.id)
-        )
-        group_names = list(groups_result.scalars().all())
-        out.append(
-            {
-                "id": user.id,
-                "telegram_id": user.telegram_id,
-                "username": user.username,
-                "status": user.status,
-                "full_name": profile.full_name if profile else None,
-                "phone": profile.phone if profile else None,
-                "english_level": profile.english_level if profile else None,
-                "group_names": group_names,
-            }
-        )
-    return out
+    if not rows:
+        return []
+
+    user_ids = [user.id for user, _ in rows]
+    groups_result = await db.execute(
+        select(StudentGroup.user_id, Group.name)
+        .join(Group, Group.id == StudentGroup.group_id)
+        .where(StudentGroup.user_id.in_(user_ids))
+    )
+    groups_by_user: dict[int, list[str]] = {}
+    for user_id, group_name in groups_result.all():
+        groups_by_user.setdefault(user_id, []).append(group_name)
+
+    return [
+        {
+            "id": user.id,
+            "telegram_id": user.telegram_id,
+            "username": user.username,
+            "status": user.status,
+            "full_name": profile.full_name if profile else None,
+            "phone": profile.phone if profile else None,
+            "english_level": profile.english_level if profile else None,
+            "group_names": groups_by_user.get(user.id, []),
+        }
+        for user, profile in rows
+    ]
 
 
 async def get_student(db: AsyncSession, user_id: int) -> Optional[dict]:
@@ -139,7 +144,9 @@ async def remove_from_group(
 
 
 async def soft_delete_student(db: AsyncSession, user_id: int) -> bool:
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.role == "student")
+    )
     user = result.scalar_one_or_none()
     if not user:
         return False
@@ -177,7 +184,7 @@ async def bulk_import_students(
             )
             level = None
 
-        fake_tg_id = -(random.randint(1_000_000, 9_999_999))
+        fake_tg_id = -(random.randint(10**12, 10**13))
         user = User(
             telegram_id=fake_tg_id,
             username=None,

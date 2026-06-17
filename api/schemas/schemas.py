@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict
 
 
@@ -128,7 +128,7 @@ class StudentListItem(BaseModel):
 
 
 class StudentLevelUpdate(BaseModel):
-    level: str
+    level: Literal["novice", "A1", "A2", "B1", "B2", "C1", "C2"]
 
 
 class StudentGroupsUpdate(BaseModel):

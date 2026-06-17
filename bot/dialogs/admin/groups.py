@@ -104,6 +104,13 @@ async def on_back_to_list(
     await manager.switch_to(GroupMgmtSG.list_view)
 
 
+async def on_back_to_menu(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.menu import AdminMenuSG
+    await manager.start(AdminMenuSG.main, mode=StartMode.RESET_STACK)
+
+
 async def on_name_entered(
     message: Message, widget: TextInput, manager: DialogManager, value: str
 ) -> None:
@@ -178,6 +185,7 @@ dialog = Dialog(
             height=8,
         ),
         Button(Const("➕ Нова група"), id="new_group", on_click=on_new_group),
+        Button(Const("← Меню"), id="back_menu_g", on_click=on_back_to_menu),
         state=GroupMgmtSG.list_view,
         getter=get_groups_list,
     ),
