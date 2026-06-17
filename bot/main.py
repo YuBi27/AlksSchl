@@ -15,7 +15,8 @@ from bot.middlewares.i18n import setup_i18n
 from bot.middlewares.throttling import ThrottlingMiddleware
 from bot.handlers import start, blocked
 from bot.dialogs.registration import language, agreements, student, teacher
-from bot.dialogs.admin import applications
+from bot.dialogs.admin import applications, menu, students as admin_students, groups as admin_groups
+from bot.dialogs.admin.excel_import import router as excel_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,11 +42,15 @@ async def main():
 
     dp.include_router(start.router)
     dp.include_router(blocked.router)
+    dp.include_router(excel_router)
     dp.include_router(language.dialog)
     dp.include_router(agreements.dialog)
     dp.include_router(student.dialog)
     dp.include_router(teacher.dialog)
     dp.include_router(applications.dialog)
+    dp.include_router(menu.dialog)
+    dp.include_router(admin_students.dialog)
+    dp.include_router(admin_groups.dialog)
 
     setup_dialogs(dp)
 

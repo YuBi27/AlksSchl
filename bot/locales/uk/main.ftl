@@ -88,3 +88,21 @@ btn-reject = ❌ Відхилити
 status-pending = Вашу заявку ще не підтверджено. Очікуйте рішення адміністратора.
 status-banned = Ваш доступ заблоковано. Зверніться до адміністратора.
 status-inactive = Ваш акаунт деактивовано.
+
+# --- Адмін: головне меню ---
+admin-menu-title = 🏫 Адмін-панель
+
+# --- Адмін: учні ---
+admin-students-title = 👥 Учні
+admin-student-search-hint = Введіть ім'я або телефон для пошуку:
+admin-student-not-found = Учня не знайдено.
+
+# --- Адмін: групи ---
+admin-groups-title = 🏫 Групи
+admin-group-created = ✅ Групу створено.
+admin-group-updated = ✅ Групу оновлено.
+admin-group-deleted = ✅ Групу видалено.
+
+# --- Адмін: імпорт ---
+admin-import-success = ✅ Імпорт завершено! Додано: { $created }, пропущено: { $skipped }.
+admin-import-error = ❌ Помилка імпорту.

@@ -88,3 +88,21 @@ btn-reject = ❌ Reject
 status-pending = Your account is pending approval. Please wait for the administrator's decision.
 status-banned = Your access has been blocked. Please contact the administrator.
 status-inactive = Your account has been deactivated.
+
+# --- Admin: main menu ---
+admin-menu-title = 🏫 Admin Panel
+
+# --- Admin: students ---
+admin-students-title = 👥 Students
+admin-student-search-hint = Enter name or phone to search:
+admin-student-not-found = Student not found.
+
+# --- Admin: groups ---
+admin-groups-title = 🏫 Groups
+admin-group-created = ✅ Group created.
+admin-group-updated = ✅ Group updated.
+admin-group-deleted = ✅ Group deleted.
+
+# --- Admin: import ---
+admin-import-success = ✅ Import complete! Added: { $created }, skipped: { $skipped }.
+admin-import-error = ❌ Import error.
