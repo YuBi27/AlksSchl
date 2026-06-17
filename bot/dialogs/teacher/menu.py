@@ -16,17 +16,23 @@ async def on_start(start_data: dict, manager: DialogManager) -> None:
 
 async def on_lessons(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     from bot.dialogs.teacher.lessons import TeacherLessonSG
-    await manager.start(TeacherLessonSG.list_groups, mode=StartMode.RESET_STACK)
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"teacher_override_id": override_id} if override_id else {}
+    await manager.start(TeacherLessonSG.list_groups, mode=StartMode.RESET_STACK, data=data)
 
 
 async def on_homework(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     from bot.dialogs.teacher.homework import TeacherHomeworkSG
-    await manager.start(TeacherHomeworkSG.hw_list, mode=StartMode.RESET_STACK)
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"teacher_override_id": override_id} if override_id else {}
+    await manager.start(TeacherHomeworkSG.hw_list, mode=StartMode.RESET_STACK, data=data)
 
 
 async def on_students(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     from bot.dialogs.teacher.students import TeacherStudentSG
-    await manager.start(TeacherStudentSG.student_list, mode=StartMode.RESET_STACK)
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"teacher_override_id": override_id} if override_id else {}
+    await manager.start(TeacherStudentSG.student_list, mode=StartMode.RESET_STACK, data=data)
 
 
 dialog = Dialog(

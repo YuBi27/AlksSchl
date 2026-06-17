@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Any
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
-from aiogram_dialog import Dialog, Window, DialogManager, StartMode
+from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Button, Row, ScrollingGroup, Select
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.input import TextInput
+
+KYIV_TZ = ZoneInfo("Europe/Kyiv")
 
 
 class TeacherLessonSG(StatesGroup):
@@ -33,6 +36,11 @@ def _teacher_id(manager: DialogManager) -> int:
     )
 
 
+async def on_start(start_data: dict, manager: DialogManager) -> None:
+    if isinstance(start_data, dict) and "teacher_override_id" in start_data:
+        manager.dialog_data["teacher_override_id"] = start_data["teacher_override_id"]
+
+
 async def get_groups(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     groups = await api_client.get_groups()
@@ -54,11 +62,9 @@ async def get_lessons(dialog_manager: DialogManager, **kwargs) -> dict:
     from_dt = (now - timedelta(days=7)).isoformat()
     to_dt = (now + timedelta(days=7)).isoformat()
     lessons = await api_client.get_lessons(group_id=group_id, from_dt=from_dt, to_dt=to_dt)
-    from zoneinfo import ZoneInfo
-    KYIV = ZoneInfo("Europe/Kyiv")
     items = []
     for l in sorted(lessons, key=lambda x: x["scheduled_at"]):
-        dt = datetime.fromisoformat(l["scheduled_at"]).astimezone(KYIV)
+        dt = datetime.fromisoformat(l["scheduled_at"]).astimezone(KYIV_TZ)
         label = dt.strftime("%d.%m %H:%M")
         items.append((str(l["id"]), label))
     return {"lessons": items}
@@ -236,4 +242,5 @@ dialog = Dialog(
         Button(Const("← Назад"), id="btn_back_lesson_card", on_click=lambda c, b, m: m.switch_to(TeacherLessonSG.lesson_card)),
         state=TeacherLessonSG.lesson_note,
     ),
+    on_start=on_start,
 )
