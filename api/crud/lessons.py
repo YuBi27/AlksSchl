@@ -19,13 +19,13 @@ async def get_lessons(
     status: Optional[str] = None,
 ) -> list[Lesson]:
     query = select(Lesson).order_by(Lesson.scheduled_at)
-    if group_id:
+    if group_id is not None:
         query = query.where(Lesson.group_id == group_id)
-    if from_dt:
+    if from_dt is not None:
         query = query.where(Lesson.scheduled_at >= from_dt)
-    if to_dt:
+    if to_dt is not None:
         query = query.where(Lesson.scheduled_at <= to_dt)
-    if status:
+    if status is not None:
         query = query.where(Lesson.status == status)
     result = await db.execute(query)
     return list(result.scalars().all())
