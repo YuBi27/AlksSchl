@@ -120,3 +120,10 @@ student-schedule-empty = No upcoming lessons scheduled.
 # --- Reminders ---
 reminder-lesson-title = ⏰ Lesson reminder!
 reminder-lesson-footer = Enjoy your lesson! 🎓
+
+# --- Teacher module ---
+teacher-menu-title = 👨‍🏫 Teacher panel
+teacher-hw-assigned = 📝 New homework assigned!
+teacher-hw-graded = ✅ Homework graded!
+teacher-attendance-saved = ✅ Attendance saved.
+teacher-note-saved = ✅ Comment saved.

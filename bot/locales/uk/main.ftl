@@ -120,3 +120,10 @@ student-schedule-empty = Найближчих занять не запланов
 # --- Нагадування ---
 reminder-lesson-title = ⏰ Нагадування про заняття!
 reminder-lesson-footer = Гарного заняття! 🎓
+
+# --- Модуль викладача ---
+teacher-menu-title = 👨‍🏫 Панель викладача
+teacher-hw-assigned = 📝 Нове домашнє завдання!
+teacher-hw-graded = ✅ Домашнє завдання оцінено!
+teacher-attendance-saved = ✅ Відвідуваність збережена.
+teacher-note-saved = ✅ Коментар збережено.

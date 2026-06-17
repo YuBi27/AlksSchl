@@ -17,6 +17,11 @@ async def cmd_start(message: Message, user_data: dict, dialog_manager: DialogMan
         await dialog_manager.start(AdminMenuSG.main, mode=StartMode.RESET_STACK)
         return
 
+    if role == "teacher" and status == "active":
+        from bot.dialogs.teacher.menu import TeacherMenuSG
+        await dialog_manager.start(TeacherMenuSG.main, mode=StartMode.RESET_STACK)
+        return
+
     if status == "active":
         from bot.dialogs.student.menu import StudentMenuSG
         await dialog_manager.start(StudentMenuSG.main, mode=StartMode.RESET_STACK)

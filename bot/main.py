@@ -19,6 +19,9 @@ from bot.dialogs.admin import applications, menu, students as admin_students, gr
 from bot.dialogs.admin import schedule as admin_schedule
 from bot.dialogs.admin.excel_import import router as excel_router
 from bot.dialogs.student import menu as student_menu, schedule as student_schedule
+from bot.dialogs.teacher import menu as teacher_menu, lessons as teacher_lessons
+from bot.dialogs.teacher import homework as teacher_homework, students as teacher_students
+from bot.dialogs.admin import teacher_proxy
 from bot.tasks.reminders import reminder_loop
 from bot.tasks.schedule_generator import schedule_generator_loop
 
@@ -58,6 +61,11 @@ async def main():
     dp.include_router(admin_schedule.dialog)
     dp.include_router(student_menu.dialog)
     dp.include_router(student_schedule.dialog)
+    dp.include_router(teacher_menu.dialog)
+    dp.include_router(teacher_lessons.dialog)
+    dp.include_router(teacher_homework.dialog)
+    dp.include_router(teacher_students.dialog)
+    dp.include_router(teacher_proxy.dialog)
 
     setup_dialogs(dp)
 

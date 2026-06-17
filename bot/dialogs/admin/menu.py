@@ -37,6 +37,13 @@ async def on_schedule(
     await manager.start(ScheduleMgmtSG.list_groups, mode=StartMode.RESET_STACK)
 
 
+async def on_teachers(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.teacher_proxy import TeacherProxySG
+    await manager.start(TeacherProxySG.teacher_list, mode=StartMode.RESET_STACK)
+
+
 dialog = Dialog(
     Window(
         Const("🏫 Адмін-панель\n\nОберіть розділ:"),
@@ -44,6 +51,7 @@ dialog = Dialog(
         Button(Const("👥 Учні"), id="btn_students", on_click=on_students),
         Button(Const("🏫 Групи"), id="btn_groups", on_click=on_groups),
         Button(Const("📅 Розклад"), id="btn_schedule", on_click=on_schedule),
+        Button(Const("👨‍🏫 Вчителі"), id="btn_teachers", on_click=on_teachers),
         state=AdminMenuSG.main,
     )
 )
