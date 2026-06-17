@@ -164,7 +164,9 @@ class Schedule(Base):
     )
 
     lessons: Mapped[list["Lesson"]] = relationship(
-        back_populates="schedule", cascade="all, delete-orphan"
+        back_populates="schedule",
+        cascade="save-update, merge",
+        passive_deletes=True,
     )
 
 
