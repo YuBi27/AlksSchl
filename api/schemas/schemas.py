@@ -90,3 +90,58 @@ class AdminLogCreate(BaseModel):
     action: str
     target_user_id: Optional[int] = None
     details: Optional[dict] = None
+
+
+class GroupCreate(BaseModel):
+    name: str
+    level: Optional[str] = None
+    description: Optional[str] = None
+
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = None
+    level: Optional[str] = None
+    description: Optional[str] = None
+
+
+class GroupRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    level: Optional[str] = None
+    teacher_id: Optional[int] = None
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+    student_count: int = 0
+
+
+class StudentListItem(BaseModel):
+    id: int
+    telegram_id: int
+    username: Optional[str] = None
+    status: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    english_level: Optional[str] = None
+    group_names: list[str] = []
+
+
+class StudentLevelUpdate(BaseModel):
+    level: str
+
+
+class StudentGroupsUpdate(BaseModel):
+    group_ids: list[int]
+
+
+class ImportRow(BaseModel):
+    full_name: str
+    phone: str
+    level: Optional[str] = None
+    group_name: Optional[str] = None
+
+
+class ImportResult(BaseModel):
+    created: int
+    skipped: int
+    errors: list[str] = []
