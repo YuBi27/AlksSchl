@@ -194,3 +194,61 @@ class Lesson(Base):
     )
 
     schedule: Mapped[Optional["Schedule"]] = relationship(back_populates="lessons")
+
+
+class Attendance(Base):
+    __tablename__ = "attendances"
+    __table_args__ = (UniqueConstraint("lesson_id", "student_user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False)
+    student_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    lesson: Mapped["Lesson"] = relationship()
+    student: Mapped["User"] = relationship(foreign_keys=[student_user_id])
+
+
+class Homework(Base):
+    __tablename__ = "homeworks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    group_id: Mapped[Optional[int]] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
+    student_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    grades: Mapped[list["HomeworkGrade"]] = relationship(back_populates="homework", cascade="all, delete-orphan")
+
+
+class HomeworkGrade(Base):
+    __tablename__ = "homework_grades"
+    __table_args__ = (UniqueConstraint("homework_id", "student_user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    homework_id: Mapped[int] = mapped_column(ForeignKey("homeworks.id", ondelete="CASCADE"), nullable=False)
+    student_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    graded_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    grade_text: Mapped[str] = mapped_column(String(512), nullable=False)
+    graded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    homework: Mapped["Homework"] = relationship(back_populates="grades")
+    student: Mapped["User"] = relationship(foreign_keys=[student_user_id])
+
+
+class TeacherNote(Base):
+    __tablename__ = "teacher_notes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    student_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    lesson_id: Mapped[Optional[int]] = mapped_column(ForeignKey("lessons.id", ondelete="SET NULL"))
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    student: Mapped[Optional["User"]] = relationship(foreign_keys=[student_user_id])
+    lesson: Mapped[Optional["Lesson"]] = relationship()
