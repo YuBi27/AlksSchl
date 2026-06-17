@@ -13,8 +13,8 @@ async def cmd_start(message: Message, user_data: dict, dialog_manager: DialogMan
     status = user_data.get("status", "pending")
 
     if role == "admin":
-        from bot.dialogs.admin.applications import AdminAppSG
-        await dialog_manager.start(AdminAppSG.list_view, mode=StartMode.RESET_STACK)
+        from bot.dialogs.admin.menu import AdminMenuSG
+        await dialog_manager.start(AdminMenuSG.main, mode=StartMode.RESET_STACK)
         return
 
     if status == "active":
