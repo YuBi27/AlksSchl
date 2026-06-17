@@ -1,7 +1,8 @@
-from datetime import datetime, date
+from datetime import datetime, date, time
 from typing import Optional
 from sqlalchemy import (
-    String, BigInteger, ForeignKey, DateTime, Date, Text, Integer, JSON, UniqueConstraint
+    String, BigInteger, ForeignKey, DateTime, Date, Text, Integer, JSON,
+    UniqueConstraint, Time, SmallInteger, Boolean
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -145,3 +146,49 @@ class StudentGroup(Base):
     __table_args__ = (UniqueConstraint("user_id", "group_id"),)
 
     group: Mapped["Group"] = relationship(back_populates="student_groups")
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    )
+    day_of_week: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    duration_min: Mapped[int] = mapped_column(SmallInteger, default=60, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    lessons: Mapped[list["Lesson"]] = relationship(
+        back_populates="schedule", cascade="all, delete-orphan"
+    )
+
+
+class Lesson(Base):
+    __tablename__ = "lessons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    )
+    schedule_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("schedules.id", ondelete="SET NULL")
+    )
+    scheduled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    duration_min: Mapped[int] = mapped_column(SmallInteger, default=60, nullable=False)
+    zoom_link: Mapped[Optional[str]] = mapped_column(String(512))
+    status: Mapped[str] = mapped_column(String(16), default="scheduled", nullable=False)
+    reminder_24h_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reminder_2h_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    reminder_30m_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    schedule: Mapped[Optional["Schedule"]] = relationship(back_populates="lessons")
