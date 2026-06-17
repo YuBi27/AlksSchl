@@ -216,3 +216,120 @@ class APIClient:
         ) as resp:
             resp.raise_for_status()
             return await resp.json()
+
+    # --- Schedules ---
+
+    async def get_schedules(self, group_id: int) -> list[dict]:
+        async with self._session.get(
+            f"{self.base_url}/schedules", params={"group_id": group_id}
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def create_schedule(
+        self,
+        group_id: int,
+        day_of_week: int,
+        start_time: str,
+        duration_min: int = 60,
+    ) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/schedules",
+            json={"group_id": group_id, "day_of_week": day_of_week,
+                  "start_time": start_time, "duration_min": duration_min},
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def delete_schedule(self, schedule_id: int) -> None:
+        async with self._session.delete(
+            f"{self.base_url}/schedules/{schedule_id}"
+        ) as resp:
+            resp.raise_for_status()
+
+    async def generate_upcoming_lessons(self) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/schedules/generate-upcoming"
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    # --- Lessons ---
+
+    async def get_lessons(
+        self,
+        group_id: Optional[int] = None,
+        from_dt: Optional[str] = None,
+        to_dt: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> list[dict]:
+        params = {}
+        if group_id is not None:
+            params["group_id"] = group_id
+        if from_dt is not None:
+            params["from_dt"] = from_dt
+        if to_dt is not None:
+            params["to_dt"] = to_dt
+        if status is not None:
+            params["status"] = status
+        async with self._session.get(
+            f"{self.base_url}/lessons", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_lesson(self, lesson_id: int) -> dict:
+        async with self._session.get(
+            f"{self.base_url}/lessons/{lesson_id}"
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def create_lesson(
+        self,
+        group_id: int,
+        scheduled_at: str,
+        duration_min: int = 60,
+        zoom_link: Optional[str] = None,
+    ) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/lessons",
+            json={"group_id": group_id, "scheduled_at": scheduled_at,
+                  "duration_min": duration_min, "zoom_link": zoom_link},
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def update_lesson(self, lesson_id: int, **kwargs) -> dict:
+        async with self._session.patch(
+            f"{self.base_url}/lessons/{lesson_id}", json=kwargs
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def cancel_lesson(self, lesson_id: int) -> None:
+        async with self._session.delete(
+            f"{self.base_url}/lessons/{lesson_id}"
+        ) as resp:
+            resp.raise_for_status()
+
+    async def get_due_reminders(self) -> list[dict]:
+        async with self._session.get(
+            f"{self.base_url}/lessons/due-reminders"
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def mark_reminder_sent(self, lesson_id: int, reminder_type: str) -> None:
+        """reminder_type: '24h' | '2h' | '30min'"""
+        field_map = {
+            "24h": "reminder_24h_sent",
+            "2h": "reminder_2h_sent",
+            "30min": "reminder_30m_sent",
+        }
+        field = field_map[reminder_type]
+        async with self._session.patch(
+            f"{self.base_url}/lessons/{lesson_id}/reminders",
+            json={field: True},
+        ) as resp:
+            resp.raise_for_status()
