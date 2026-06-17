@@ -25,10 +25,14 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     status: str | None = None,
+    role: str | None = None,
 ):
+    q = select(User)
     if status:
-        return await get_users_by_status(db, status)
-    result = await db.execute(select(User))
+        q = q.where(User.status == status)
+    if role:
+        q = q.where(User.role == role)
+    result = await db.execute(q)
     return list(result.scalars().all())
 
 

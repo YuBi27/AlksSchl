@@ -207,15 +207,8 @@ class APIClient:
         ) as resp:
             resp.raise_for_status()
 
-    async def get_group_students(
-        self, group_id: int, offset: int = 0, limit: int = 10
-    ) -> list[dict]:
-        async with self._session.get(
-            f"{self.base_url}/groups/{group_id}/students",
-            params={"offset": offset, "limit": limit},
-        ) as resp:
-            resp.raise_for_status()
-            return await resp.json()
+    async def get_group_students(self, group_id: int) -> list[dict]:
+        return await self.get_students(group_id=group_id, status="active")
 
     # --- Schedules ---
 
@@ -333,3 +326,99 @@ class APIClient:
             json={field: True},
         ) as resp:
             resp.raise_for_status()
+
+    async def get_users_by_role(self, role: str) -> list[dict]:
+        async with self._session.get(
+            f"{self.base_url}/users", params={"role": role}
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def upsert_attendance(self, lesson_id: int, student_user_id: int, status: str) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/attendances",
+            json={"lesson_id": lesson_id, "student_user_id": student_user_id, "status": status},
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_attendances(
+        self,
+        lesson_id: int | None = None,
+        student_user_id: int | None = None,
+    ) -> list[dict]:
+        params = {}
+        if lesson_id is not None:
+            params["lesson_id"] = lesson_id
+        if student_user_id is not None:
+            params["student_user_id"] = student_user_id
+        async with self._session.get(f"{self.base_url}/attendances", params=params) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_homeworks(
+        self,
+        teacher_id: int | None = None,
+        group_id: int | None = None,
+        student_user_id: int | None = None,
+    ) -> list[dict]:
+        params = {}
+        if teacher_id is not None:
+            params["teacher_id"] = teacher_id
+        if group_id is not None:
+            params["group_id"] = group_id
+        if student_user_id is not None:
+            params["student_user_id"] = student_user_id
+        async with self._session.get(f"{self.base_url}/homeworks", params=params) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def create_homework(self, data: dict) -> dict:
+        async with self._session.post(f"{self.base_url}/homeworks", json=data) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_homework(self, homework_id: int) -> dict:
+        async with self._session.get(f"{self.base_url}/homeworks/{homework_id}") as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_homework_grades(self, homework_id: int) -> list[dict]:
+        async with self._session.get(f"{self.base_url}/homeworks/{homework_id}/grades") as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def upsert_grade(self, homework_id: int, data: dict) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/homeworks/{homework_id}/grades", json=data
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_teacher_notes(
+        self,
+        student_user_id: int | None = None,
+        lesson_id: int | None = None,
+    ) -> list[dict]:
+        params = {}
+        if student_user_id is not None:
+            params["student_user_id"] = student_user_id
+        if lesson_id is not None:
+            params["lesson_id"] = lesson_id
+        async with self._session.get(f"{self.base_url}/teacher-notes", params=params) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def create_teacher_note(self, data: dict) -> dict:
+        async with self._session.post(f"{self.base_url}/teacher-notes", json=data) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def delete_teacher_note(self, note_id: int) -> None:
+        async with self._session.delete(f"{self.base_url}/teacher-notes/{note_id}") as resp:
+            resp.raise_for_status()
+
+    async def get_teacher_profile(self, user_id: int) -> dict:
+        async with self._session.get(f"{self.base_url}/users/{user_id}/teacher-profile") as resp:
+            resp.raise_for_status()
+            return await resp.json()
