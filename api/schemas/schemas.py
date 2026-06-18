@@ -96,6 +96,7 @@ class GroupCreate(BaseModel):
     name: str
     level: Optional[str] = None
     description: Optional[str] = None
+    teacher_id: Optional[int] = None
 
 
 class GroupUpdate(BaseModel):
@@ -174,7 +175,8 @@ class ScheduleRead(BaseModel):
 
 
 class LessonCreate(BaseModel):
-    group_id: int
+    group_id: Optional[int] = None
+    student_user_id: Optional[int] = None
     scheduled_at: datetime   # UTC-aware ISO string
     duration_min: int = 60
     zoom_link: Optional[str] = None
@@ -186,11 +188,18 @@ class LessonCreate(BaseModel):
             raise ValueError("scheduled_at must be timezone-aware (UTC)")
         return v
 
+    @model_validator(mode="after")
+    def exactly_one_target(self) -> "LessonCreate":
+        if (self.group_id is None) == (self.student_user_id is None):
+            raise ValueError("Exactly one of group_id or student_user_id must be set")
+        return self
+
 
 class LessonRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    group_id: int
+    group_id: Optional[int] = None
+    student_user_id: Optional[int] = None
     schedule_id: Optional[int] = None
     scheduled_at: datetime
     duration_min: int
@@ -315,3 +324,26 @@ class TeacherNoteRead(BaseModel):
     lesson_id: Optional[int] = None
     text: str
     created_at: Optional[datetime] = None
+
+
+class BroadcastCreate(BaseModel):
+    sender_id: Optional[int] = None
+    target_type: str
+    target_id: Optional[int] = None
+    message_type: str
+    text: Optional[str] = None
+    file_id: Optional[str] = None
+    recipient_count: int = 0
+
+
+class BroadcastRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    sender_id: Optional[int] = None
+    target_type: str
+    target_id: Optional[int] = None
+    message_type: str
+    text: Optional[str] = None
+    file_id: Optional[str] = None
+    recipient_count: int
+    sent_at: datetime
