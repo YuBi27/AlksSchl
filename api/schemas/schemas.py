@@ -359,3 +359,26 @@ class BotContentRead(BaseModel):
 class BotContentUpdate(BaseModel):
     value: str
     updated_by: Optional[int] = None
+
+
+class PaymentCreate(BaseModel):
+    user_id: int
+    amount: float
+    period_start: date
+    period_end: date
+    payment_type: str  # "monthly" | "one_time"
+    comment: Optional[str] = None
+    confirmed_by: Optional[int] = None
+
+
+class PaymentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: Optional[int] = None
+    amount: float
+    period_start: date
+    period_end: date
+    payment_type: str
+    comment: Optional[str] = None
+    confirmed_by: Optional[int] = None
+    created_at: datetime
