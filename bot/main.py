@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 from aiogram_dialog import setup_dialogs
 from redis.asyncio import Redis
 from bot.config import settings
@@ -35,7 +35,7 @@ async def main():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     redis = Redis.from_url(settings.redis_url)
-    storage = RedisStorage(redis=redis)
+    storage = RedisStorage(redis=redis, key_builder=DefaultKeyBuilder(with_destiny=True))
     dp = Dispatcher(storage=storage)
 
     api_client = APIClient(base_url=settings.api_url, secret=settings.bot_secret)
