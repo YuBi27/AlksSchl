@@ -347,3 +347,15 @@ class BroadcastRead(BaseModel):
     file_id: Optional[str] = None
     recipient_count: int
     sent_at: datetime
+
+
+class BotContentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    key: str
+    value: str
+    updated_at: datetime
+
+
+class BotContentUpdate(BaseModel):
+    value: str
+    updated_by: Optional[int] = None
