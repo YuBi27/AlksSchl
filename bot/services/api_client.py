@@ -555,3 +555,49 @@ class APIClient:
         async with self._session.get(f"{self.base_url}/stats/overview") as resp:
             resp.raise_for_status()
             return await resp.json()
+
+    # --- Payments ---
+
+    async def save_payment(
+        self,
+        user_id: int,
+        amount: str,
+        period_start: str,
+        period_end: str,
+        payment_type: str,
+        confirmed_by: Optional[int] = None,
+        comment: Optional[str] = None,
+    ) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/payments",
+            json={
+                "user_id": user_id,
+                "amount": amount,
+                "period_start": period_start,
+                "period_end": period_end,
+                "payment_type": payment_type,
+                "confirmed_by": confirmed_by,
+                "comment": comment,
+            },
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_payments(
+        self,
+        user_id: Optional[int] = None,
+        limit: int = 20,
+    ) -> list[dict]:
+        params: dict = {"limit": limit}
+        if user_id is not None:
+            params["user_id"] = user_id
+        async with self._session.get(
+            f"{self.base_url}/payments", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_debtors(self) -> list[dict]:
+        async with self._session.get(f"{self.base_url}/payments/debtors") as resp:
+            resp.raise_for_status()
+            return await resp.json()
