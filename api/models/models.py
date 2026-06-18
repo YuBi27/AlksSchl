@@ -2,7 +2,7 @@ from datetime import datetime, date, time
 from typing import Optional
 from sqlalchemy import (
     String, BigInteger, ForeignKey, DateTime, Date, Text, Integer, JSON,
-    UniqueConstraint, Time, SmallInteger, Boolean
+    UniqueConstraint, Time, SmallInteger, Boolean, Numeric
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -288,3 +288,17 @@ class BotContent(Base):
     updated_by: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    payment_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(Text)
+    confirmed_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

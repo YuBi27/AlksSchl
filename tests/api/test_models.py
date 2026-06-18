@@ -28,3 +28,22 @@ async def test_broadcasts_and_content_tables_created():
     assert "broadcasts" in tables
     assert "bot_content" in tables
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_payments_table_created(db):
+    from api.models.models import Payment
+    from datetime import date
+    from decimal import Decimal
+    p = Payment(
+        user_id=None,
+        amount=Decimal("1500.00"),
+        period_start=date(2026, 6, 1),
+        period_end=date(2026, 6, 30),
+        payment_type="monthly",
+    )
+    db.add(p)
+    await db.commit()
+    await db.refresh(p)
+    assert p.id is not None
+    assert p.payment_type == "monthly"
