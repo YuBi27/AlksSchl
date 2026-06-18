@@ -17,3 +17,14 @@ async def test_all_tables_created():
     assert "agreements" in tables
     assert "admin_actions_log" in tables
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_broadcasts_and_content_tables_created():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    tables = Base.metadata.tables.keys()
+    assert "broadcasts" in tables
+    assert "bot_content" in tables
+    await engine.dispose()

@@ -174,8 +174,11 @@ class Lesson(Base):
     __tablename__ = "lessons"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    group_id: Mapped[int] = mapped_column(
-        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    group_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE"), nullable=True
+    )
+    student_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
     schedule_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("schedules.id", ondelete="SET NULL")
@@ -252,3 +255,35 @@ class TeacherNote(Base):
 
     student: Mapped[Optional["User"]] = relationship(foreign_keys=[student_user_id])
     lesson: Mapped[Optional["Lesson"]] = relationship()
+
+
+class Broadcast(Base):
+    __tablename__ = "broadcasts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sender_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    message_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    file_id: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    recipient_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class BotContent(Base):
+    __tablename__ = "bot_content"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    updated_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
