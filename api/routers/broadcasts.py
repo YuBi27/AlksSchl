@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.db import get_db
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/broadcasts", tags=["broadcasts"])
 
 
 @router.post("", response_model=BroadcastRead, status_code=201)
-async def create_broadcast(data: BroadcastCreate, db: AsyncSession = Depends(get_db)):
+async def create_broadcast(data: BroadcastCreate, db: Annotated[AsyncSession, Depends(get_db)]):
     return await save_broadcast(
         db,
         target_type=data.target_type,
@@ -24,8 +24,8 @@ async def create_broadcast(data: BroadcastCreate, db: AsyncSession = Depends(get
 
 @router.get("", response_model=list[BroadcastRead])
 async def get_broadcasts_list(
+    db: Annotated[AsyncSession, Depends(get_db)],
     sender_id: Optional[int] = Query(None),
     limit: int = Query(20, le=100),
-    db: AsyncSession = Depends(get_db),
 ):
     return await list_broadcasts(db, sender_id=sender_id, limit=limit)
