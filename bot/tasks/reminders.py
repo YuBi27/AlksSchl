@@ -77,7 +77,7 @@ async def _process_lesson(bot: Bot, api_client: APIClient, lesson: dict) -> None
 
     try:
         group = await api_client.get_group(lesson["group_id"])
-        students = await api_client.get_group_students(lesson["group_id"], limit=200)
+        students = await api_client.get_group_students(lesson["group_id"])
     except Exception as e:
         logger.error("Failed to fetch group data for lesson %d: %s", lesson["id"], e)
         return

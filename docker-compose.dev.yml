@@ -20,5 +20,5 @@ services:
 
   bot:
     volumes:
-      - ./bot:/app
-    command: python main.py
+      - ./bot:/app/bot
+    command: python -m bot.main
