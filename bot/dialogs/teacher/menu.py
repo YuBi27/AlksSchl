@@ -35,12 +35,38 @@ async def on_students(callback: CallbackQuery, button: Button, manager: DialogMa
     await manager.start(TeacherStudentSG.student_list, mode=StartMode.RESET_STACK, data=data)
 
 
+async def on_schedule(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
+    from bot.dialogs.admin.schedule import ScheduleMgmtSG
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"origin": "teacher"}
+    if override_id:
+        data["teacher_override_id"] = override_id
+    await manager.start(ScheduleMgmtSG.list_groups, mode=StartMode.RESET_STACK, data=data)
+
+
+async def on_groups(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
+    from bot.dialogs.teacher.groups import TeacherGroupSG
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"teacher_override_id": override_id} if override_id else {}
+    await manager.start(TeacherGroupSG.list_view, mode=StartMode.RESET_STACK, data=data)
+
+
+async def on_broadcasts(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
+    from bot.dialogs.teacher.broadcasts import TeacherBroadcastSG
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"teacher_override_id": override_id} if override_id else {}
+    await manager.start(TeacherBroadcastSG.group_select, mode=StartMode.RESET_STACK, data=data)
+
+
 dialog = Dialog(
     Window(
         Const("👨‍🏫 Панель викладача\n\nОберіть розділ:"),
         Button(Const("📋 Заняття"), id="btn_lessons", on_click=on_lessons),
         Button(Const("📝 ДЗ"), id="btn_homework", on_click=on_homework),
         Button(Const("👤 Учні"), id="btn_students", on_click=on_students),
+        Button(Const("🏫 Мої групи"), id="btn_groups", on_click=on_groups),
+        Button(Const("📅 Розклад"), id="btn_schedule", on_click=on_schedule),
+        Button(Const("📢 Повідомлення групі"), id="btn_broadcasts", on_click=on_broadcasts),
         state=TeacherMenuSG.main,
     ),
     on_start=on_start,

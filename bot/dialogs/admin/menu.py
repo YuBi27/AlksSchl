@@ -44,6 +44,41 @@ async def on_teachers(
     await manager.start(TeacherProxySG.teacher_list, mode=StartMode.RESET_STACK)
 
 
+async def on_my_teacher_panel(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.teacher.menu import TeacherMenuSG
+    await manager.start(TeacherMenuSG.main, mode=StartMode.RESET_STACK)
+
+
+async def on_invites(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.invite_codes import InviteCodeMgmtSG
+    await manager.start(InviteCodeMgmtSG.main, mode=StartMode.RESET_STACK)
+
+
+async def on_broadcasts(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.broadcasts import AdminBroadcastSG
+    await manager.start(AdminBroadcastSG.target_select, mode=StartMode.RESET_STACK)
+
+
+async def on_stats(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.stats import AdminStatsSG
+    await manager.start(AdminStatsSG.overview, mode=StartMode.RESET_STACK)
+
+
+async def on_content(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.content import AdminContentSG
+    await manager.start(AdminContentSG.list_view, mode=StartMode.RESET_STACK)
+
+
 dialog = Dialog(
     Window(
         Const("🏫 Адмін-панель\n\nОберіть розділ:"),
@@ -52,6 +87,11 @@ dialog = Dialog(
         Button(Const("🏫 Групи"), id="btn_groups", on_click=on_groups),
         Button(Const("📅 Розклад"), id="btn_schedule", on_click=on_schedule),
         Button(Const("👨‍🏫 Вчителі"), id="btn_teachers", on_click=on_teachers),
+        Button(Const("👨‍🏫 Моя панель викладача"), id="btn_my_teacher", on_click=on_my_teacher_panel),
+        Button(Const("🔑 Інвайт для викладача"), id="btn_invites", on_click=on_invites),
+        Button(Const("📢 Розсилки"), id="btn_broadcasts", on_click=on_broadcasts),
+        Button(Const("📊 Статистика"), id="btn_stats", on_click=on_stats),
+        Button(Const("📄 Контент"), id="btn_content", on_click=on_content),
         state=AdminMenuSG.main,
     )
 )

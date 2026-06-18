@@ -17,11 +17,17 @@ from bot.handlers import start, blocked
 from bot.dialogs.registration import language, agreements, student, teacher
 from bot.dialogs.admin import applications, menu, students as admin_students, groups as admin_groups
 from bot.dialogs.admin import schedule as admin_schedule
+from bot.dialogs.admin import invite_codes as admin_invite_codes
 from bot.dialogs.admin.excel_import import router as excel_router
 from bot.dialogs.student import menu as student_menu, schedule as student_schedule
+from bot.dialogs.student import homework as student_homework, profile as student_profile
 from bot.dialogs.teacher import menu as teacher_menu, lessons as teacher_lessons
 from bot.dialogs.teacher import homework as teacher_homework, students as teacher_students
+from bot.dialogs.teacher import groups as teacher_groups
 from bot.dialogs.admin import teacher_proxy
+from bot.dialogs.admin import broadcasts as admin_broadcasts, stats as admin_stats, content as admin_content
+from bot.dialogs.student import info as student_info
+from bot.dialogs.teacher import broadcasts as teacher_broadcasts
 from bot.tasks.reminders import reminder_loop
 from bot.tasks.schedule_generator import schedule_generator_loop
 
@@ -61,11 +67,20 @@ async def main():
     dp.include_router(admin_schedule.dialog)
     dp.include_router(student_menu.dialog)
     dp.include_router(student_schedule.dialog)
+    dp.include_router(student_homework.dialog)
+    dp.include_router(student_profile.dialog)
     dp.include_router(teacher_menu.dialog)
     dp.include_router(teacher_lessons.dialog)
     dp.include_router(teacher_homework.dialog)
     dp.include_router(teacher_students.dialog)
+    dp.include_router(teacher_groups.dialog)
     dp.include_router(teacher_proxy.dialog)
+    dp.include_router(admin_invite_codes.dialog)
+    dp.include_router(admin_broadcasts.dialog)
+    dp.include_router(admin_stats.dialog)
+    dp.include_router(admin_content.dialog)
+    dp.include_router(student_info.dialog)
+    dp.include_router(teacher_broadcasts.dialog)
 
     setup_dialogs(dp)
 
