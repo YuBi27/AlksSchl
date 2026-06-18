@@ -63,6 +63,23 @@ class APIClient:
             resp.raise_for_status()
             return await resp.json()
 
+    async def get_user_student_profile(self, user_id: int) -> dict:
+        async with self._session.get(
+            f"{self.base_url}/users/{user_id}/student-profile"
+        ) as resp:
+            if resp.status == 404:
+                return {}
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def generate_invite_code(self, created_by: int, role: str = "teacher") -> dict:
+        async with self._session.post(
+            f"{self.base_url}/invite-codes",
+            json={"created_by": created_by, "role": role},
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
     async def create_student_profile(self, user_id: int, data: dict) -> dict:
         async with self._session.post(
             f"{self.base_url}/users/{user_id}/student-profile",
@@ -174,8 +191,11 @@ class APIClient:
             resp.raise_for_status()
             return await resp.json()
 
-    async def get_groups(self) -> list[dict]:
-        async with self._session.get(f"{self.base_url}/groups") as resp:
+    async def get_groups(self, teacher_id: int | None = None) -> list[dict]:
+        params = {}
+        if teacher_id is not None:
+            params["teacher_id"] = teacher_id
+        async with self._session.get(f"{self.base_url}/groups", params=params) as resp:
             resp.raise_for_status()
             return await resp.json()
 
@@ -186,10 +206,16 @@ class APIClient:
             resp.raise_for_status()
             return await resp.json()
 
-    async def create_group(self, name: str, level: str | None, description: str | None) -> dict:
+    async def create_group(
+        self,
+        name: str,
+        level: str | None,
+        description: str | None,
+        teacher_id: int | None = None,
+    ) -> dict:
         async with self._session.post(
             f"{self.base_url}/groups",
-            json={"name": name, "level": level, "description": description},
+            json={"name": name, "level": level, "description": description, "teacher_id": teacher_id},
         ) as resp:
             resp.raise_for_status()
             return await resp.json()
@@ -207,8 +233,8 @@ class APIClient:
         ) as resp:
             resp.raise_for_status()
 
-    async def get_group_students(self, group_id: int) -> list[dict]:
-        return await self.get_students(group_id=group_id, status="active")
+    async def get_group_students(self, group_id: int, limit: int = 50) -> list[dict]:
+        return await self.get_students(group_id=group_id, status="active", limit=limit)
 
     # --- Schedules ---
 
@@ -234,6 +260,14 @@ class APIClient:
             resp.raise_for_status()
             return await resp.json()
 
+    async def update_schedule(self, schedule_id: int, **kwargs) -> dict:
+        async with self._session.patch(
+            f"{self.base_url}/schedules/{schedule_id}",
+            json=kwargs,
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
     async def delete_schedule(self, schedule_id: int) -> None:
         async with self._session.delete(
             f"{self.base_url}/schedules/{schedule_id}"
@@ -252,6 +286,7 @@ class APIClient:
     async def get_lessons(
         self,
         group_id: Optional[int] = None,
+        student_user_id: Optional[int] = None,
         from_dt: Optional[str] = None,
         to_dt: Optional[str] = None,
         status: Optional[str] = None,
@@ -259,6 +294,8 @@ class APIClient:
         params = {}
         if group_id is not None:
             params["group_id"] = group_id
+        if student_user_id is not None:
+            params["student_user_id"] = student_user_id
         if from_dt is not None:
             params["from_dt"] = from_dt
         if to_dt is not None:
@@ -280,15 +317,21 @@ class APIClient:
 
     async def create_lesson(
         self,
-        group_id: int,
         scheduled_at: str,
         duration_min: int = 60,
         zoom_link: Optional[str] = None,
+        group_id: Optional[int] = None,
+        student_user_id: Optional[int] = None,
     ) -> dict:
+        body: dict = {"scheduled_at": scheduled_at, "duration_min": duration_min}
+        if group_id is not None:
+            body["group_id"] = group_id
+        if student_user_id is not None:
+            body["student_user_id"] = student_user_id
+        if zoom_link is not None:
+            body["zoom_link"] = zoom_link
         async with self._session.post(
-            f"{self.base_url}/lessons",
-            json={"group_id": group_id, "scheduled_at": scheduled_at,
-                  "duration_min": duration_min, "zoom_link": zoom_link},
+            f"{self.base_url}/lessons", json=body,
         ) as resp:
             resp.raise_for_status()
             return await resp.json()
@@ -420,5 +463,95 @@ class APIClient:
 
     async def get_teacher_profile(self, user_id: int) -> dict:
         async with self._session.get(f"{self.base_url}/users/{user_id}/teacher-profile") as resp:
+            if resp.status == 404:
+                return {}
+            resp.raise_for_status()
+            return await resp.json()
+
+    # --- Broadcasts ---
+
+    async def save_broadcast(
+        self,
+        target_type: str,
+        message_type: str,
+        recipient_count: int,
+        sender_id: Optional[int] = None,
+        target_id: Optional[int] = None,
+        text: Optional[str] = None,
+        file_id: Optional[str] = None,
+    ) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/broadcasts",
+            json={
+                "sender_id": sender_id,
+                "target_type": target_type,
+                "target_id": target_id,
+                "message_type": message_type,
+                "text": text,
+                "file_id": file_id,
+                "recipient_count": recipient_count,
+            },
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_broadcasts(
+        self,
+        sender_id: Optional[int] = None,
+        limit: int = 20,
+    ) -> list[dict]:
+        params: dict = {"limit": limit}
+        if sender_id is not None:
+            params["sender_id"] = sender_id
+        async with self._session.get(
+            f"{self.base_url}/broadcasts", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    # --- Content ---
+
+    async def get_content(self, key: str) -> dict:
+        async with self._session.get(f"{self.base_url}/bot-content/{key}") as resp:
+            if resp.status == 404:
+                return {"key": key, "value": "Інформація ще не додана."}
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def set_content(
+        self, key: str, value: str, updated_by: Optional[int] = None
+    ) -> dict:
+        async with self._session.put(
+            f"{self.base_url}/bot-content/{key}",
+            json={"value": value, "updated_by": updated_by},
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_teacher_profiles(self) -> list[dict]:
+        async with self._session.get(f"{self.base_url}/teacher-profiles") as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_users(
+        self,
+        role: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> list[dict]:
+        params: dict = {}
+        if role:
+            params["role"] = role
+        if status:
+            params["status"] = status
+        async with self._session.get(
+            f"{self.base_url}/users", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    # --- Statistics ---
+
+    async def get_stats_overview(self) -> dict:
+        async with self._session.get(f"{self.base_url}/stats/overview") as resp:
             resp.raise_for_status()
             return await resp.json()
