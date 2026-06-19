@@ -826,3 +826,36 @@ class APIClient:
         ) as resp:
             resp.raise_for_status()
             return await resp.json()
+
+    # ---- Analytics ----
+
+    async def get_financial_stats(self, days: int = 30) -> dict:
+        async with self._session.get(
+            f"{self.base_url}/stats/financial", params={"days": days}
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_attendance_stats(
+        self, days: int = 30, group_id: Optional[int] = None
+    ) -> dict:
+        params: dict = {"days": days}
+        if group_id is not None:
+            params["group_id"] = group_id
+        async with self._session.get(
+            f"{self.base_url}/stats/attendance", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_performance_stats(
+        self, days: int = 30, group_id: Optional[int] = None
+    ) -> dict:
+        params: dict = {"days": days}
+        if group_id is not None:
+            params["group_id"] = group_id
+        async with self._session.get(
+            f"{self.base_url}/stats/performance", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
