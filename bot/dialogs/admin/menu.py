@@ -71,7 +71,7 @@ dialog = Dialog(
         ),
         Row(
             Button(Const("👨‍🏫 Вчителі"),    id="m_teachers",  on_click=on_teachers),
-            Button(Const("👨‍🏫 Моя панель"), id="m_my_teach",  on_click=on_my_teacher_panel),
+            Button(Const("👨‍🏫 Панель викладача"), id="m_my_teach",  on_click=on_my_teacher_panel),
         ),
         Row(
             Button(Const("🔑 Інвайти"),      id="m_invites",   on_click=on_invites),
