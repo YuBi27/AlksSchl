@@ -367,8 +367,10 @@ class PaymentCreate(BaseModel):
     period_start: date
     period_end: date
     payment_type: str  # "monthly" | "one_time"
+    months_paid: int = 1
     comment: Optional[str] = None
     confirmed_by: Optional[int] = None
+    status: str = "created"
 
 
 class PaymentRead(BaseModel):
@@ -379,6 +381,140 @@ class PaymentRead(BaseModel):
     period_start: date
     period_end: date
     payment_type: str
+    months_paid: int = 1
+    status: str = "created"
     comment: Optional[str] = None
     confirmed_by: Optional[int] = None
     created_at: datetime
+
+
+class PaymentStatusUpdate(BaseModel):
+    status: str  # "pending_confirmation" | "confirmed" | "rejected"
+    months_paid: Optional[int] = None
+
+
+class PaymentUpdate(BaseModel):
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    amount: Optional[float] = None
+    status: Optional[str] = None
+    comment: Optional[str] = None
+
+
+# --- Quiz ---
+
+class QuizOptionCreate(BaseModel):
+    text: str = Field(max_length=512)
+    is_correct: bool = False
+
+
+class QuizOptionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    question_id: int
+    text: str
+    is_correct: bool
+
+
+class QuizQuestionCreate(BaseModel):
+    order_idx: int
+    question_type: Literal["single", "multi", "text"]
+    text: str
+    file_id: Optional[str] = None
+    options: list[QuizOptionCreate] = []
+
+
+class QuizQuestionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    quiz_id: int
+    order_idx: int
+    question_type: str
+    text: str
+    file_id: Optional[str] = None
+    options: list[QuizOptionRead] = []
+
+
+class QuizCreate(BaseModel):
+    title: str = Field(max_length=256)
+    description: Optional[str] = None
+    creator_id: Optional[int] = None
+    time_limit_min: Optional[int] = None
+    shuffle_questions: bool = False
+
+
+class QuizUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=256)
+    description: Optional[str] = None
+    time_limit_min: Optional[int] = None
+    shuffle_questions: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class QuizRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    description: Optional[str] = None
+    creator_id: Optional[int] = None
+    time_limit_min: Optional[int] = None
+    shuffle_questions: bool = False
+    is_active: bool = True
+    created_at: datetime
+    questions: list[QuizQuestionRead] = []
+
+
+class QuizAssignmentCreate(BaseModel):
+    quiz_id: int
+    assigned_by: Optional[int] = None
+    group_id: Optional[int] = None
+    student_user_id: Optional[int] = None
+    deadline: Optional[datetime] = None
+
+    @model_validator(mode="after")
+    def exactly_one_target(self) -> "QuizAssignmentCreate":
+        if (self.group_id is None) == (self.student_user_id is None):
+            raise ValueError("Exactly one of group_id or student_user_id must be set")
+        return self
+
+
+class QuizAssignmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    quiz_id: int
+    assigned_by: Optional[int] = None
+    group_id: Optional[int] = None
+    student_user_id: Optional[int] = None
+    deadline: Optional[datetime] = None
+    created_at: datetime
+
+
+class QuizAnswerRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    attempt_id: int
+    question_id: int
+    selected_options: list[int] = []
+    text_answer: Optional[str] = None
+    is_correct: Optional[bool] = None
+    points_earned: float = 0.0
+
+
+class QuizAttemptRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    quiz_id: int
+    student_user_id: int
+    assignment_id: Optional[int] = None
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+    score: float = 0.0
+    max_score: float = 0.0
+    status: str
+    answers: list[QuizAnswerRead] = []
+
+
+class QuizAnswerCreate(BaseModel):
+    question_id: int
+    selected_options: list[int] = []
+    text_answer: Optional[str] = None
