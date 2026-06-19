@@ -4,6 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
+from redis.asyncio import Redis
 from bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
@@ -75,14 +76,27 @@ async def _process_lesson(bot: Bot, api_client: APIClient, lesson: dict) -> None
     if not reminder_types:
         return
 
-    try:
-        group = await api_client.get_group(lesson["group_id"])
-        students = await api_client.get_group_students(lesson["group_id"])
-    except Exception as e:
-        logger.error("Failed to fetch group data for lesson %d: %s", lesson["id"], e)
+    if lesson.get("group_id"):
+        try:
+            group = await api_client.get_group(lesson["group_id"])
+            students = await api_client.get_group_students(lesson["group_id"])
+        except Exception as e:
+            logger.error("Failed to fetch group data for lesson %d: %s", lesson["id"], e)
+            return
+        group_name = group.get("name", "Група")
+        teacher_user_id = group.get("teacher_id")
+    elif lesson.get("student_user_id"):
+        try:
+            student_user = await api_client.get_user(lesson["student_user_id"])
+            students = [{"telegram_id": student_user["telegram_id"]}]
+        except Exception as e:
+            logger.error("Failed to fetch student for individual lesson %d: %s", lesson["id"], e)
+            return
+        group_name = "Індивідуальне заняття"
+        teacher_user_id = None
+    else:
+        logger.warning("Lesson %d has no group_id or student_user_id, skipping", lesson["id"])
         return
-
-    group_name = group.get("name", "Група")
 
     for reminder_type in reminder_types:
         text = _build_reminder_text(lesson, group_name, reminder_type)
@@ -90,7 +104,6 @@ async def _process_lesson(bot: Bot, api_client: APIClient, lesson: dict) -> None
         for student in students:
             await _send_to_user(bot, student["telegram_id"], text)
 
-        teacher_user_id = group.get("teacher_id")
         if teacher_user_id:
             try:
                 teacher = await api_client.get_user(teacher_user_id)
@@ -104,7 +117,44 @@ async def _process_lesson(bot: Bot, api_client: APIClient, lesson: dict) -> None
             logger.error("Failed to mark reminder sent for lesson %d: %s", lesson["id"], e)
 
 
-async def reminder_loop(bot: Bot, api_client: APIClient) -> None:
+MONTHS_UK_NOM = [
+    "", "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+    "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень",
+]
+
+
+async def _send_payment_reminders(
+    bot: Bot, api_client: APIClient, redis: Redis, now_kyiv: datetime
+) -> None:
+    if now_kyiv.day not in (1, 10) or now_kyiv.hour != 10:
+        return
+
+    dedup_key = f"payment_reminder:{now_kyiv.strftime('%Y-%m-%d')}"
+    already_sent = await redis.exists(dedup_key)
+    if already_sent:
+        return
+
+    try:
+        content = await api_client.get_content("payment_details")
+        details = content.get("value", "")
+        month_name = MONTHS_UK_NOM[now_kyiv.month]
+        text = (
+            f"💳 Нагадування про оплату за {month_name} {now_kyiv.year}.\n\n"
+            f"{details}"
+        )
+        users = await api_client.get_users(role="student", status="active")
+        for user in users:
+            tg_id = user.get("telegram_id")
+            if tg_id and tg_id > 0:
+                await _send_to_user(bot, tg_id, text)
+
+        await redis.setex(dedup_key, 86400, "1")
+        logger.info("Payment reminders sent for %s", now_kyiv.strftime('%Y-%m-%d'))
+    except Exception as e:
+        logger.error("Payment reminder error: %s", e)
+
+
+async def reminder_loop(bot: Bot, api_client: APIClient, redis: Redis = None) -> None:
     """Background task: poll for due reminders every 2 minutes."""
     logger.info("Reminder loop started")
     while True:
@@ -112,6 +162,9 @@ async def reminder_loop(bot: Bot, api_client: APIClient) -> None:
             lessons = await api_client.get_due_reminders()
             for lesson in lessons:
                 await _process_lesson(bot, api_client, lesson)
+            if redis is not None:
+                now_kyiv = datetime.now(tz=KYIV_TZ)
+                await _send_payment_reminders(bot, api_client, redis, now_kyiv)
         except Exception as e:
             logger.error("Reminder loop error: %s", e)
         await asyncio.sleep(120)

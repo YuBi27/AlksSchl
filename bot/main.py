@@ -28,6 +28,8 @@ from bot.dialogs.admin import teacher_proxy
 from bot.dialogs.admin import broadcasts as admin_broadcasts, stats as admin_stats, content as admin_content
 from bot.dialogs.student import info as student_info
 from bot.dialogs.teacher import broadcasts as teacher_broadcasts
+from bot.dialogs.admin import payments as admin_payments
+from bot.dialogs.student import payments as student_payments
 from bot.tasks.reminders import reminder_loop
 from bot.tasks.schedule_generator import schedule_generator_loop
 
@@ -81,12 +83,14 @@ async def main():
     dp.include_router(admin_content.dialog)
     dp.include_router(student_info.dialog)
     dp.include_router(teacher_broadcasts.dialog)
+    dp.include_router(admin_payments.dialog)
+    dp.include_router(student_payments.dialog)
 
     setup_dialogs(dp)
 
     dp["bot"] = bot
 
-    asyncio.create_task(reminder_loop(bot, api_client))
+    asyncio.create_task(reminder_loop(bot, api_client, redis))
     asyncio.create_task(schedule_generator_loop(api_client))
 
     try:
