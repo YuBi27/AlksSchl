@@ -1,12 +1,23 @@
+from typing import Any
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
-from aiogram_dialog.widgets.kbd import Button
-from aiogram_dialog.widgets.text import Const, Format
+from aiogram_dialog.widgets.kbd import ScrollingGroup, Select
+from aiogram_dialog.widgets.text import Format
 
 
 class StudentMenuSG(StatesGroup):
     main = State()
+
+
+_MENU_ITEMS = [
+    ("schedule", "📅 Мій розклад"),
+    ("homework", "📝 Домашні завдання"),
+    ("quizzes", "📋 Тести"),
+    ("payments", "💳 Оплата"),
+    ("profile", "👤 Мій профіль"),
+    ("info", "📄 Інфо про школу"),
+]
 
 
 async def get_menu_data(dialog_manager: DialogManager, **kwargs) -> dict:
@@ -19,60 +30,47 @@ async def get_menu_data(dialog_manager: DialogManager, **kwargs) -> dict:
     except Exception:
         name = user_data.get("username") or "Учень"
         groups = "—"
-    return {"name": name, "groups": groups}
+    return {"name": name, "groups": groups, "items": _MENU_ITEMS}
 
 
-async def on_my_schedule(
-    callback: CallbackQuery, button: Button, manager: DialogManager
+async def on_menu_select(
+    callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str
 ) -> None:
-    from bot.dialogs.student.schedule import StudentScheduleSG
-    await manager.start(StudentScheduleSG.schedule_view, mode=StartMode.RESET_STACK)
-
-
-async def on_my_homework(
-    callback: CallbackQuery, button: Button, manager: DialogManager
-) -> None:
-    from bot.dialogs.student.homework import StudentHomeworkSG
-    await manager.start(StudentHomeworkSG.hw_list, mode=StartMode.RESET_STACK)
-
-
-async def on_my_profile(
-    callback: CallbackQuery, button: Button, manager: DialogManager
-) -> None:
-    from bot.dialogs.student.profile import StudentProfileSG
-    await manager.start(StudentProfileSG.main, mode=StartMode.RESET_STACK)
-
-
-async def on_school_info(
-    callback: CallbackQuery, button: Button, manager: DialogManager
-) -> None:
-    from bot.dialogs.student.info import StudentInfoSG
-    await manager.start(StudentInfoSG.main, mode=StartMode.RESET_STACK)
-
-
-async def on_payments(
-    callback: CallbackQuery, button: Button, manager: DialogManager
-) -> None:
-    from bot.dialogs.student.payments import StudentPaymentSG
-    await manager.start(StudentPaymentSG.main, mode=StartMode.RESET_STACK)
-
-
-async def on_quizzes(
-    callback: CallbackQuery, button: Button, manager: DialogManager
-) -> None:
-    from bot.dialogs.student.quizzes import StudentQuizSG
-    await manager.start(StudentQuizSG.quiz_list, mode=StartMode.RESET_STACK)
+    if item_id == "schedule":
+        from bot.dialogs.student.schedule import StudentScheduleSG
+        await manager.start(StudentScheduleSG.schedule_view, mode=StartMode.RESET_STACK)
+    elif item_id == "homework":
+        from bot.dialogs.student.homework import StudentHomeworkSG
+        await manager.start(StudentHomeworkSG.hw_list, mode=StartMode.RESET_STACK)
+    elif item_id == "profile":
+        from bot.dialogs.student.profile import StudentProfileSG
+        await manager.start(StudentProfileSG.main, mode=StartMode.RESET_STACK)
+    elif item_id == "info":
+        from bot.dialogs.student.info import StudentInfoSG
+        await manager.start(StudentInfoSG.main, mode=StartMode.RESET_STACK)
+    elif item_id == "payments":
+        from bot.dialogs.student.payments import StudentPaymentSG
+        await manager.start(StudentPaymentSG.main, mode=StartMode.RESET_STACK)
+    elif item_id == "quizzes":
+        from bot.dialogs.student.quizzes import StudentQuizSG
+        await manager.start(StudentQuizSG.quiz_list, mode=StartMode.RESET_STACK)
 
 
 dialog = Dialog(
     Window(
         Format("🏠 Привіт, <b>{name}</b>!\n👥 Групи: {groups}\n\nОберіть розділ:"),
-        Button(Const("📅 Мій розклад"), id="btn_my_schedule", on_click=on_my_schedule),
-        Button(Const("📝 Домашні завдання"), id="btn_my_hw", on_click=on_my_homework),
-        Button(Const("👤 Мій профіль"), id="btn_my_profile", on_click=on_my_profile),
-        Button(Const("💳 Оплата"), id="btn_payments", on_click=on_payments),
-        Button(Const("📋 Тести"), id="btn_quizzes", on_click=on_quizzes),
-        Button(Const("📄 Інфо про школу"), id="btn_school_info", on_click=on_school_info),
+        ScrollingGroup(
+            Select(
+                Format("{item[1]}"),
+                id="student_menu_sel",
+                item_id_getter=lambda x: x[0],
+                items="items",
+                on_click=on_menu_select,
+            ),
+            id="student_menu_sg",
+            width=1,
+            height=6,
+        ),
         state=StudentMenuSG.main,
         getter=get_menu_data,
     )
