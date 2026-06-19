@@ -518,3 +518,90 @@ class QuizAnswerCreate(BaseModel):
     question_id: int
     selected_options: list[int] = []
     text_answer: Optional[str] = None
+
+
+# --- Analytics ---
+
+class MonthlyRevenue(BaseModel):
+    month: str
+    revenue: float
+    count: int
+
+
+class DebtorInfo(BaseModel):
+    user_id: int
+    full_name: Optional[str] = None
+    group_names: list[str] = []
+    last_payment_at: Optional[str] = None
+
+
+class FinancialStats(BaseModel):
+    period_days: int
+    total_confirmed: float = 0.0
+    total_pending: float = 0.0
+    total_rejected: float = 0.0
+    confirmed_count: int = 0
+    pending_count: int = 0
+    rejected_count: int = 0
+    debtors_count: int = 0
+    debtors_total_estimate: float = 0.0
+    monthly_revenue: list[MonthlyRevenue] = []
+    debtors: list[DebtorInfo] = []
+
+
+class GroupAttendanceStat(BaseModel):
+    group_id: int
+    group_name: str
+    total_lessons: int
+    student_count: int
+    present_count: int
+    possible_count: int
+    percent: int
+
+
+class StudentAttendanceStat(BaseModel):
+    user_id: int
+    full_name: Optional[str] = None
+    group_name: Optional[str] = None
+    total: int
+    present: int
+    late: int
+    absent: int
+    excused: int
+    percent: int
+
+
+class AttendanceStats(BaseModel):
+    period_days: int
+    group_id: Optional[int] = None
+    by_group: list[GroupAttendanceStat] = []
+    by_student: list[StudentAttendanceStat] = []
+
+
+class HomeworkOverall(BaseModel):
+    assigned_count: int = 0
+    submitted_count: int = 0
+    completion_rate: int = 0
+
+
+class QuizOverall(BaseModel):
+    attempts_count: int = 0
+    completed_count: int = 0
+    avg_score_pct: int = 0
+
+
+class StudentRanking(BaseModel):
+    user_id: int
+    full_name: Optional[str] = None
+    group_name: Optional[str] = None
+    hw_completion_pct: int = 0
+    quiz_avg_pct: int = 0
+    combined_score: float = 0.0
+
+
+class PerformanceStats(BaseModel):
+    period_days: int
+    group_id: Optional[int] = None
+    homework: HomeworkOverall = HomeworkOverall()
+    quizzes: QuizOverall = QuizOverall()
+    student_ranking: list[StudentRanking] = []
