@@ -30,6 +30,9 @@ from bot.dialogs.student import info as student_info
 from bot.dialogs.teacher import broadcasts as teacher_broadcasts
 from bot.dialogs.admin import payments as admin_payments
 from bot.dialogs.student import payments as student_payments
+from bot.dialogs.admin import quizzes as admin_quizzes
+from bot.dialogs.teacher import quizzes as teacher_quizzes
+from bot.dialogs.student import quizzes as student_quizzes
 from bot.tasks.reminders import reminder_loop
 from bot.tasks.schedule_generator import schedule_generator_loop
 
@@ -85,6 +88,9 @@ async def main():
     dp.include_router(teacher_broadcasts.dialog)
     dp.include_router(admin_payments.dialog)
     dp.include_router(student_payments.dialog)
+    dp.include_router(admin_quizzes.dialog)
+    dp.include_router(teacher_quizzes.dialog)
+    dp.include_router(student_quizzes.dialog)
 
     setup_dialogs(dp)
 

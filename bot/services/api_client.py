@@ -565,8 +565,10 @@ class APIClient:
         period_start: str,
         period_end: str,
         payment_type: str,
+        months_paid: int = 1,
         confirmed_by: Optional[int] = None,
         comment: Optional[str] = None,
+        status: str = "created",
     ) -> dict:
         async with self._session.post(
             f"{self.base_url}/payments",
@@ -576,8 +578,10 @@ class APIClient:
                 "period_start": period_start,
                 "period_end": period_end,
                 "payment_type": payment_type,
+                "months_paid": months_paid,
                 "confirmed_by": confirmed_by,
                 "comment": comment,
+                "status": status,
             },
         ) as resp:
             resp.raise_for_status()
@@ -586,18 +590,239 @@ class APIClient:
     async def get_payments(
         self,
         user_id: Optional[int] = None,
+        status: Optional[str] = None,
         limit: int = 20,
     ) -> list[dict]:
         params: dict = {"limit": limit}
         if user_id is not None:
             params["user_id"] = user_id
+        if status is not None:
+            params["status"] = status
         async with self._session.get(
             f"{self.base_url}/payments", params=params
         ) as resp:
             resp.raise_for_status()
             return await resp.json()
 
+    async def patch_payment_fields(self, payment_id: int, **kwargs) -> dict:
+        async with self._session.patch(
+            f"{self.base_url}/payments/{payment_id}/fields",
+            json={k: v for k, v in kwargs.items() if v is not None},
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def update_payment_status(
+        self, payment_id: int, status: str, months_paid: Optional[int] = None
+    ) -> dict:
+        body: dict = {"status": status}
+        if months_paid is not None:
+            body["months_paid"] = months_paid
+        async with self._session.patch(
+            f"{self.base_url}/payments/{payment_id}/status",
+            json=body,
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def delete_payment(self, payment_id: int) -> bool:
+        async with self._session.delete(
+            f"{self.base_url}/payments/{payment_id}"
+        ) as resp:
+            return resp.status == 204
+
     async def get_debtors(self) -> list[dict]:
         async with self._session.get(f"{self.base_url}/payments/debtors") as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    # ---- Quizzes ----
+
+    async def create_quiz(
+        self,
+        title: str,
+        creator_id: Optional[int] = None,
+        description: Optional[str] = None,
+        time_limit_min: Optional[int] = None,
+        shuffle_questions: bool = False,
+    ) -> dict:
+        body: dict = {"title": title, "shuffle_questions": shuffle_questions}
+        if creator_id is not None:
+            body["creator_id"] = creator_id
+        if description is not None:
+            body["description"] = description
+        if time_limit_min is not None:
+            body["time_limit_min"] = time_limit_min
+        async with self._session.post(f"{self.base_url}/quizzes", json=body) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_quiz(self, quiz_id: int) -> dict:
+        async with self._session.get(f"{self.base_url}/quizzes/{quiz_id}") as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def list_quizzes(self, creator_id: Optional[int] = None) -> list[dict]:
+        params = {}
+        if creator_id is not None:
+            params["creator_id"] = creator_id
+        async with self._session.get(f"{self.base_url}/quizzes", params=params) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def delete_quiz(self, quiz_id: int) -> bool:
+        async with self._session.delete(f"{self.base_url}/quizzes/{quiz_id}") as resp:
+            return resp.status == 204
+
+    async def add_quiz_question(
+        self,
+        quiz_id: int,
+        order_idx: int,
+        question_type: str,
+        text: str,
+        options: list[dict],
+        file_id: Optional[str] = None,
+    ) -> dict:
+        body: dict = {
+            "order_idx": order_idx,
+            "question_type": question_type,
+            "text": text,
+            "options": options,
+        }
+        if file_id:
+            body["file_id"] = file_id
+        async with self._session.post(
+            f"{self.base_url}/quizzes/{quiz_id}/questions", json=body
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def delete_quiz_question(self, question_id: int) -> bool:
+        async with self._session.delete(
+            f"{self.base_url}/quizzes/questions/{question_id}"
+        ) as resp:
+            return resp.status == 204
+
+    async def create_quiz_assignment(
+        self,
+        quiz_id: int,
+        assigned_by: Optional[int],
+        group_id: Optional[int] = None,
+        student_user_id: Optional[int] = None,
+        deadline: Optional[str] = None,
+    ) -> dict:
+        body: dict = {"quiz_id": quiz_id, "assigned_by": assigned_by}
+        if group_id is not None:
+            body["group_id"] = group_id
+        if student_user_id is not None:
+            body["student_user_id"] = student_user_id
+        if deadline is not None:
+            body["deadline"] = deadline
+        async with self._session.post(
+            f"{self.base_url}/quiz-assignments", json=body
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def list_quiz_assignments(
+        self,
+        quiz_id: Optional[int] = None,
+        student_user_id: Optional[int] = None,
+        group_id: Optional[int] = None,
+    ) -> list[dict]:
+        params: dict = {}
+        if quiz_id is not None:
+            params["quiz_id"] = quiz_id
+        if student_user_id is not None:
+            params["student_user_id"] = student_user_id
+        if group_id is not None:
+            params["group_id"] = group_id
+        async with self._session.get(
+            f"{self.base_url}/quiz-assignments", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def list_quiz_assignments_for_student(self, user_id: int) -> list[dict]:
+        async with self._session.get(
+            f"{self.base_url}/quiz-assignments/for-student/{user_id}"
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def delete_quiz_assignment(self, assignment_id: int) -> bool:
+        async with self._session.delete(
+            f"{self.base_url}/quiz-assignments/{assignment_id}"
+        ) as resp:
+            return resp.status == 204
+
+    async def start_quiz_attempt(
+        self,
+        quiz_id: int,
+        student_user_id: int,
+        assignment_id: Optional[int] = None,
+    ) -> dict:
+        body: dict = {"quiz_id": quiz_id, "student_user_id": student_user_id}
+        if assignment_id is not None:
+            body["assignment_id"] = assignment_id
+        async with self._session.post(
+            f"{self.base_url}/quiz-attempts", json=body
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def get_quiz_attempt(self, attempt_id: int) -> dict:
+        async with self._session.get(
+            f"{self.base_url}/quiz-attempts/{attempt_id}"
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def list_quiz_attempts(
+        self,
+        quiz_id: Optional[int] = None,
+        student_user_id: Optional[int] = None,
+        status: Optional[str] = None,
+    ) -> list[dict]:
+        params: dict = {}
+        if quiz_id is not None:
+            params["quiz_id"] = quiz_id
+        if student_user_id is not None:
+            params["student_user_id"] = student_user_id
+        if status is not None:
+            params["status"] = status
+        async with self._session.get(
+            f"{self.base_url}/quiz-attempts", params=params
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def save_quiz_answer(
+        self,
+        attempt_id: int,
+        question_id: int,
+        selected_options: list[int],
+        text_answer: Optional[str] = None,
+    ) -> dict:
+        body: dict = {"question_id": question_id, "selected_options": selected_options}
+        if text_answer is not None:
+            body["text_answer"] = text_answer
+        async with self._session.post(
+            f"{self.base_url}/quiz-attempts/{attempt_id}/answer", json=body
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def finish_quiz_attempt(self, attempt_id: int) -> dict:
+        async with self._session.post(
+            f"{self.base_url}/quiz-attempts/{attempt_id}/finish"
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+    async def list_quiz_results(self, quiz_id: int) -> list[dict]:
+        async with self._session.get(
+            f"{self.base_url}/quizzes/{quiz_id}/results"
+        ) as resp:
             resp.raise_for_status()
             return await resp.json()

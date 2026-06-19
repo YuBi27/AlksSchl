@@ -58,6 +58,13 @@ async def on_broadcasts(callback: CallbackQuery, button: Button, manager: Dialog
     await manager.start(TeacherBroadcastSG.group_select, mode=StartMode.RESET_STACK, data=data)
 
 
+async def on_quizzes(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
+    from bot.dialogs.teacher.quizzes import TeacherQuizSG
+    override_id = manager.dialog_data.get("teacher_override_id")
+    data = {"teacher_override_id": override_id} if override_id else {}
+    await manager.start(TeacherQuizSG.quiz_list, mode=StartMode.RESET_STACK, data=data)
+
+
 dialog = Dialog(
     Window(
         Const("👨‍🏫 Панель викладача\n\nОберіть розділ:"),
@@ -67,6 +74,7 @@ dialog = Dialog(
         Button(Const("🏫 Мої групи"), id="btn_groups", on_click=on_groups),
         Button(Const("📅 Розклад"), id="btn_schedule", on_click=on_schedule),
         Button(Const("📢 Повідомлення групі"), id="btn_broadcasts", on_click=on_broadcasts),
+        Button(Const("📋 Тести"), id="btn_quizzes", on_click=on_quizzes),
         state=TeacherMenuSG.main,
     ),
     on_start=on_start,
