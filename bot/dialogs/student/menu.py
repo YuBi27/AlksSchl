@@ -50,12 +50,20 @@ async def on_school_info(
     await manager.start(StudentInfoSG.main, mode=StartMode.RESET_STACK)
 
 
+async def on_payments(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.student.payments import StudentPaymentSG
+    await manager.start(StudentPaymentSG.main, mode=StartMode.RESET_STACK)
+
+
 dialog = Dialog(
     Window(
         Format("🏠 Привіт, <b>{name}</b>!\n👥 Групи: {groups}\n\nОберіть розділ:"),
         Button(Const("📅 Мій розклад"), id="btn_my_schedule", on_click=on_my_schedule),
         Button(Const("📝 Домашні завдання"), id="btn_my_hw", on_click=on_my_homework),
         Button(Const("👤 Мій профіль"), id="btn_my_profile", on_click=on_my_profile),
+        Button(Const("💳 Оплата"), id="btn_payments", on_click=on_payments),
         Button(Const("📄 Інфо про школу"), id="btn_school_info", on_click=on_school_info),
         state=StudentMenuSG.main,
         getter=get_menu_data,

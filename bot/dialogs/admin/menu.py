@@ -79,6 +79,13 @@ async def on_content(
     await manager.start(AdminContentSG.list_view, mode=StartMode.RESET_STACK)
 
 
+async def on_payments(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    from bot.dialogs.admin.payments import AdminPaymentSG
+    await manager.start(AdminPaymentSG.list_view, mode=StartMode.RESET_STACK)
+
+
 dialog = Dialog(
     Window(
         Const("🏫 Адмін-панель\n\nОберіть розділ:"),
@@ -92,6 +99,7 @@ dialog = Dialog(
         Button(Const("📢 Розсилки"), id="btn_broadcasts", on_click=on_broadcasts),
         Button(Const("📊 Статистика"), id="btn_stats", on_click=on_stats),
         Button(Const("📄 Контент"), id="btn_content", on_click=on_content),
+        Button(Const("💳 Оплати"), id="btn_payments", on_click=on_payments),
         state=AdminMenuSG.main,
     )
 )

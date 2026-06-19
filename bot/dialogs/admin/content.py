@@ -30,6 +30,12 @@ async def on_select_info(callback, button, manager):
     await manager.switch_to(AdminContentSG.view_content)
 
 
+async def on_select_payment_details(callback, button, manager):
+    manager.dialog_data["content_key"] = "payment_details"
+    manager.dialog_data["content_label"] = "Реквізити для оплати"
+    await manager.switch_to(AdminContentSG.view_content)
+
+
 async def get_content(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     key = dialog_manager.dialog_data.get("content_key", "")
@@ -62,6 +68,7 @@ dialog = Dialog(
         Button(Const("📋 Правила школи"), id="cnt_rules", on_click=on_select_rules),
         Button(Const("💰 Цінова політика"), id="cnt_prices", on_click=on_select_prices),
         Button(Const("📍 Контакти та адреса"), id="cnt_info", on_click=on_select_info),
+        Button(Const("💳 Реквізити для оплати"), id="cnt_payment", on_click=on_select_payment_details),
         Button(Const("← Меню"), id="cnt_back_menu", on_click=on_back_to_menu),
         state=AdminContentSG.list_view,
     ),
