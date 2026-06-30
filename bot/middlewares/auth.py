@@ -20,10 +20,14 @@ class AuthMiddleware(BaseMiddleware):
 
         api_client: APIClient = data["api_client"]
         user_data = await api_client.get_or_create_user(user.id, user.username)
-        data["user_data"] = user_data
 
         if user.id in self.admin_ids:
-            data["user_data"] = {**user_data, "role": "admin", "status": "active"}
+            user_data = {**user_data, "role": "admin", "status": "active"}
+        elif user_data.get("role") == "admin":
+            # User had admin role in DB but is no longer in admin_ids — downgrade
+            user_data = {**user_data, "role": "student"}
+
+        data["user_data"] = user_data
 
         status = data["user_data"].get("status", "pending")
         if status in ("pending", "banned", "inactive"):
