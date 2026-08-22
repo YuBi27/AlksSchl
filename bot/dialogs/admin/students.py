@@ -17,6 +17,7 @@ class StudentMgmtSG(StatesGroup):
 
 LEVELS = [
     ("novice", "Новачок"),
+    ("preA1", "Pre A1"),
     ("A1", "A1"),
     ("A2", "A2"),
     ("B1", "B1"),
@@ -106,7 +107,19 @@ async def on_edit_level(
 async def on_assign_groups(
     callback: CallbackQuery, button: Button, manager: DialogManager
 ) -> None:
+    # Pre-populate multiselect with current groups
+    api_client = manager.middleware_data["api_client"]
+    user_id = manager.dialog_data["selected_student_id"]
+    student = await api_client.get_student(user_id)
+    all_groups = await api_client.get_groups()
+    name_to_id = {g["name"]: str(g["id"]) for g in all_groups}
+    current_ids = [name_to_id[n] for n in student.get("group_names", []) if n in name_to_id]
     await manager.switch_to(StudentMgmtSG.assign_groups)
+    widget = manager.find("groups_ms")
+    if widget:
+        widget.reset_checked()
+        for gid in current_ids:
+            widget.set_checked(gid, True)
 
 
 async def on_change_status(
@@ -139,6 +152,14 @@ async def on_back_to_menu(
     await manager.start(AdminMenuSG.main, mode=StartMode.RESET_STACK)
 
 
+def _trunc(text: str, max_len: int = 40) -> str:
+    return text if len(text) <= max_len else text[:max_len - 1] + "…"
+
+
+async def get_levels(**kwargs) -> dict:
+    return {"levels": LEVELS}
+
+
 async def on_level_selected(
     callback: CallbackQuery,
     widget: Any,
@@ -149,6 +170,7 @@ async def on_level_selected(
     user_id = manager.dialog_data["selected_student_id"]
     await api_client.set_student_level(user_id, item_id)
     await callback.answer(f"✅ Рівень встановлено: {item_id}")
+    await callback.message.answer(f"✅ Рівень англійської змінено на: <b>{item_id}</b>")
     await manager.switch_to(StudentMgmtSG.student_card)
 
 
@@ -158,7 +180,7 @@ async def get_groups_for_select(dialog_manager: DialogManager, **kwargs) -> dict
     user_id = dialog_manager.dialog_data.get("selected_student_id", 0)
     student = await api_client.get_student(user_id)
     current_groups = ", ".join(student.get("group_names", [])) or "Немає"
-    items = [(str(g["id"]), g["name"]) for g in groups]
+    items = [(str(g["id"]), _trunc(g["name"])) for g in groups]
     return {"groups": items, "current_groups": current_groups}
 
 
@@ -171,6 +193,7 @@ async def on_save_groups(
     group_ids = [int(gid) for gid in checked]
     await api_client.set_student_groups(user_id, group_ids)
     await callback.answer("✅ Групи збережено")
+    await callback.message.answer(f"✅ Групи учня оновлено ({len(group_ids)} груп)")
     await manager.switch_to(StudentMgmtSG.student_card)
 
 
@@ -187,7 +210,8 @@ async def on_confirm_delete(
     api_client = manager.middleware_data["api_client"]
     user_id = manager.dialog_data["selected_student_id"]
     await api_client.delete_student(user_id)
-    await callback.answer("✅ Учня деактивовано")
+    await callback.answer("✅ Учня видалено")
+    await callback.message.answer("✅ Учня повністю видалено з бази даних")
     await manager.switch_to(StudentMgmtSG.list_view)
 
 
@@ -249,26 +273,31 @@ dialog = Dialog(
         ),
         Button(Const("← Назад"), id="back_card_lv", on_click=lambda c, b, m: m.switch_to(StudentMgmtSG.student_card)),
         state=StudentMgmtSG.edit_level,
-        getter=lambda **_: {"levels": LEVELS},
+        getter=get_levels,
     ),
     Window(
-        Format("👥 Поточні групи: {current_groups}\n\nОберіть нові групи (можна кілька):"),
-        Multiselect(
-            Format("✅ {item[1]}"),
-            Format("☑️ {item[1]}"),
-            id="groups_ms",
-            item_id_getter=lambda x: x[0],
-            items="groups",
+        Format("👥 Поточні групи учня:\n{current_groups}\n\nОберіть групи (натисніть щоб додати/прибрати):"),
+        ScrollingGroup(
+            Multiselect(
+                Format("✅ {item[1]}"),
+                Format("⬜ {item[1]}"),
+                id="groups_ms",
+                item_id_getter=lambda x: x[0],
+                items="groups",
+            ),
+            id="groups_ms_scroll",
+            width=1,
+            height=7,
         ),
         Row(
-            Button(Const("✅ Зберегти"), id="save_groups", on_click=on_save_groups),
+            Button(Const("💾 Зберегти"), id="save_groups", on_click=on_save_groups),
             Button(Const("← Назад"), id="back_card_gr", on_click=lambda c, b, m: m.switch_to(StudentMgmtSG.student_card)),
         ),
         state=StudentMgmtSG.assign_groups,
         getter=get_groups_for_select,
     ),
     Window(
-        Format("⚠️ Видалити учня {full_name}?\nЦе деактивує акаунт."),
+        Format("⚠️ Видалити учня {full_name}?\n\nЦе назавжди видалить його з бази даних разом з усіма даними."),
         Row(
             Button(Const("✅ Підтвердити"), id="confirm_del", on_click=on_confirm_delete),
             Button(Const("❌ Скасувати"), id="cancel_del", on_click=lambda c, b, m: m.switch_to(StudentMgmtSG.student_card)),

@@ -4,7 +4,9 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram_dialog import setup_dialogs
+from aiohttp import web
 from redis.asyncio import Redis
 from bot.config import settings
 from bot.services.api_client import APIClient
@@ -40,17 +42,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def main():
-    bot = Bot(
-        token=settings.bot_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
-    redis = Redis.from_url(settings.redis_url)
+def build_dispatcher(bot: Bot, redis: Redis, api_client: APIClient) -> Dispatcher:
     storage = RedisStorage(redis=redis, key_builder=DefaultKeyBuilder(with_destiny=True))
     dp = Dispatcher(storage=storage)
-
-    api_client = APIClient(base_url=settings.api_url, secret=settings.bot_secret)
-    await api_client.start()
 
     dp.update.outer_middleware(LoggingMiddleware())
     dp.update.outer_middleware(APIClientMiddleware(api_client=api_client))
@@ -93,18 +87,63 @@ async def main():
     dp.include_router(student_quizzes.dialog)
 
     setup_dialogs(dp)
-
     dp["bot"] = bot
+    return dp
 
+
+async def on_startup(bot: Bot, api_client: APIClient, redis: Redis, dp: Dispatcher) -> None:
+    if settings.webhook_url:
+        full_webhook_url = f"{settings.webhook_url.rstrip('/')}{settings.webhook_path}"
+        await bot.set_webhook(full_webhook_url)
+        logger.info(f"Webhook set to {full_webhook_url}")
     asyncio.create_task(reminder_loop(bot, api_client, redis))
     asyncio.create_task(schedule_generator_loop(api_client))
+    logger.info("Bot started")
 
-    try:
-        logger.info("Bot started")
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
-    finally:
-        await api_client.close()
-        await bot.session.close()
+
+async def on_shutdown(bot: Bot, api_client: APIClient) -> None:
+    if settings.webhook_url:
+        await bot.delete_webhook()
+    await api_client.close()
+    await bot.session.close()
+
+
+async def main():
+    bot = Bot(
+        token=settings.bot_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    redis = Redis.from_url(settings.redis_url)
+    api_client = APIClient(base_url=settings.api_url, secret=settings.bot_secret)
+    await api_client.start()
+
+    dp = build_dispatcher(bot, redis, api_client)
+
+    if settings.webhook_url:
+        # --- Webhook mode ---
+        app = web.Application()
+
+        async def _startup(_app):
+            await on_startup(bot, api_client, redis, dp)
+
+        async def _shutdown(_app):
+            await on_shutdown(bot, api_client)
+
+        app.on_startup.append(_startup)
+        app.on_shutdown.append(_shutdown)
+
+        SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=settings.webhook_path)
+        setup_application(app, dp, bot=bot)
+
+        logger.info(f"Starting webhook on {settings.webhook_host}:{settings.webhook_port}")
+        web.run_app(app, host=settings.webhook_host, port=settings.webhook_port)
+    else:
+        # --- Polling mode (fallback) ---
+        try:
+            await on_startup(bot, api_client, redis, dp)
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        finally:
+            await on_shutdown(bot, api_client)
 
 
 if __name__ == "__main__":

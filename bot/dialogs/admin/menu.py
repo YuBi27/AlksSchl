@@ -51,7 +51,7 @@ async def on_content(c: CallbackQuery, b: Button, m: DialogManager) -> None:
 
 async def on_payments(c: CallbackQuery, b: Button, m: DialogManager) -> None:
     from bot.dialogs.admin.payments import AdminPaymentSG
-    await m.start(AdminPaymentSG.list_view, mode=StartMode.RESET_STACK)
+    await m.start(AdminPaymentSG.details_view, mode=StartMode.RESET_STACK)
 
 async def on_quizzes(c: CallbackQuery, b: Button, m: DialogManager) -> None:
     from bot.dialogs.admin.quizzes import AdminQuizSG

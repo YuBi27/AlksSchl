@@ -28,7 +28,7 @@ async def on_start(start_data: dict, manager: DialogManager) -> None:
 async def get_students(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     students = await api_client.get_students(status="active")
-    items = [(str(s["user_id"]), s["full_name"]) for s in students]
+    items = [(str(s["id"]), s.get("full_name") or f"Учень #{s['id']}") for s in students]
     return {"students": items}
 
 

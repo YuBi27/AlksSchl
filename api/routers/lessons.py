@@ -20,12 +20,13 @@ async def due_reminders_endpoint(db: AsyncSession = Depends(get_db)):
 @router.get("", response_model=list[LessonRead])
 async def list_lessons_endpoint(
     group_id: Optional[int] = None,
+    student_user_id: Optional[int] = None,
     from_dt: Optional[datetime] = None,
     to_dt: Optional[datetime] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    return await get_lessons(db, group_id, from_dt, to_dt, status)
+    return await get_lessons(db, group_id, student_user_id, from_dt, to_dt, status)
 
 
 @router.post("", status_code=201, response_model=LessonRead)
@@ -33,7 +34,12 @@ async def create_lesson_endpoint(
     data: LessonCreate, db: AsyncSession = Depends(get_db)
 ):
     return await create_lesson(
-        db, data.group_id, data.scheduled_at, data.duration_min, data.zoom_link
+        db,
+        scheduled_at=data.scheduled_at,
+        duration_min=data.duration_min,
+        zoom_link=data.zoom_link,
+        group_id=data.group_id,
+        student_user_id=data.student_user_id,
     )
 
 

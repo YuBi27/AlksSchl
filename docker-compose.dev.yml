@@ -21,4 +21,5 @@ services:
   bot:
     volumes:
       - ./bot:/app/bot
-    command: python -m bot.main
+    ports:
+      - "8080:8080"

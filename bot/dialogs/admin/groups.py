@@ -14,10 +14,12 @@ class GroupMgmtSG(StatesGroup):
     edit_level = State()
     edit_desc = State()
     group_students = State()
+    add_student = State()
 
 
 LEVELS = [
     ("novice", "Новачок"),
+    ("preA1", "Pre A1"),
     ("A1", "A1"),
     ("A2", "A2"),
     ("B1", "B1"),
@@ -27,11 +29,15 @@ LEVELS = [
 ]
 
 
+def _trunc(text: str, max_len: int = 58) -> str:
+    return text if len(text) <= max_len else text[:max_len - 1] + "…"
+
+
 async def get_groups_list(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     groups = await api_client.get_groups()
     items = [
-        (str(g["id"]), f"{g['name']} | {g.get('level') or '—'} | {g['student_count']} учнів")
+        (str(g["id"]), _trunc(f"{g['name']} | {g.get('level') or '—'} | {g['student_count']} учнів"))
         for g in groups
     ]
     return {"groups": items, "count": len(groups)}
@@ -88,6 +94,10 @@ async def on_view_students(
     await manager.switch_to(GroupMgmtSG.group_students)
 
 
+async def get_levels(**kwargs) -> dict:
+    return {"levels": LEVELS}
+
+
 async def on_delete_group(
     callback: CallbackQuery, button: Button, manager: DialogManager
 ) -> None:
@@ -95,6 +105,7 @@ async def on_delete_group(
     group_id = manager.dialog_data["selected_group_id"]
     await api_client.delete_group(group_id)
     await callback.answer("✅ Групу видалено")
+    await callback.message.answer("✅ Групу видалено")
     await manager.switch_to(GroupMgmtSG.list_view)
 
 
@@ -132,17 +143,17 @@ async def on_desc_entered(
     message: Message, widget: TextInput, manager: DialogManager, value: str
 ) -> None:
     manager.dialog_data["edit_desc"] = value.strip()
-    await _save_group(manager)
+    await _save_group(manager, message.answer)
 
 
 async def on_skip_desc(
     callback: CallbackQuery, button: Button, manager: DialogManager
 ) -> None:
     manager.dialog_data["edit_desc"] = None
-    await _save_group(manager)
+    await _save_group(manager, callback.message.answer)
 
 
-async def _save_group(manager: DialogManager) -> None:
+async def _save_group(manager: DialogManager, answer=None) -> None:
     api_client = manager.middleware_data["api_client"]
     name = manager.dialog_data["edit_name"]
     level = manager.dialog_data.get("edit_level")
@@ -151,9 +162,17 @@ async def _save_group(manager: DialogManager) -> None:
 
     if group_id:
         await api_client.update_group(group_id, name=name, level=level, description=desc)
+        msg = f"✅ Групу <b>{name}</b> оновлено"
     else:
         group = await api_client.create_group(name, level, desc)
         manager.dialog_data["selected_group_id"] = group["id"]
+        msg = f"✅ Групу <b>{name}</b> створено"
+
+    if answer:
+        try:
+            await answer(msg, parse_mode="HTML")
+        except Exception:
+            pass
 
     await manager.switch_to(GroupMgmtSG.group_card)
 
@@ -161,12 +180,62 @@ async def _save_group(manager: DialogManager) -> None:
 async def get_group_students(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     group_id = dialog_manager.dialog_data.get("selected_group_id", 0)
-    students = await api_client.get_group_students(group_id, limit=50)
-    items = [
-        (str(s["id"]), f"{s.get('full_name') or '—'} | {s.get('english_level') or '—'}")
-        for s in students
-    ]
+    students = await api_client.get_group_students(group_id)
+    items = []
+    for s in students:
+        name = s.get("full_name") or f"Учень #{s['id']}"
+        level = s.get("english_level") or "—"
+        items.append((str(s["id"]), _trunc(f"🗑 {name} | {level}")))
     return {"students": items, "count": len(students)}
+
+
+async def get_all_students_for_add(dialog_manager: DialogManager, **kwargs) -> dict:
+    api_client = dialog_manager.middleware_data["api_client"]
+    group_id = dialog_manager.dialog_data.get("selected_group_id", 0)
+    all_students = await api_client.get_students(status="active", limit=200)
+    group_students = await api_client.get_group_students(group_id)
+    in_group = {s["id"] for s in group_students}
+    items = [
+        (str(s["id"]), _trunc(s.get("full_name") or f"Учень #{s['id']}"))
+        for s in all_students
+        if s["id"] not in in_group
+    ]
+    return {"add_students": items, "count": len(items)}
+
+
+async def on_add_student_click(
+    callback: CallbackQuery, button: Button, manager: DialogManager
+) -> None:
+    await manager.switch_to(GroupMgmtSG.add_student)
+
+
+async def on_student_add_selected(
+    callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str
+) -> None:
+    api_client = manager.middleware_data["api_client"]
+    group_id = manager.dialog_data.get("selected_group_id", 0)
+    student_id = int(item_id)
+    # Preserve existing groups — only append, don't overwrite
+    student = await api_client.get_student(student_id)
+    all_groups = await api_client.get_groups()
+    name_to_id = {g["name"]: g["id"] for g in all_groups}
+    current_ids = [name_to_id[n] for n in student.get("group_names", []) if n in name_to_id]
+    new_ids = list(set(current_ids + [group_id]))
+    await api_client.set_student_groups(student_id, new_ids)
+    await callback.answer("✅ Учня додано до групи")
+    await callback.message.answer("✅ Учня додано до групи")
+    await manager.switch_to(GroupMgmtSG.group_students)
+
+
+async def on_remove_student_selected(
+    callback: CallbackQuery, widget: Any, manager: DialogManager, item_id: str
+) -> None:
+    api_client = manager.middleware_data["api_client"]
+    group_id = manager.dialog_data.get("selected_group_id", 0)
+    await api_client.remove_student_from_group(int(item_id), group_id)
+    await callback.answer("✅ Учня видалено з групи")
+    await callback.message.answer("✅ Учня видалено з групи")
+    await manager.switch_to(GroupMgmtSG.group_students)
 
 
 dialog = Dialog(
@@ -201,7 +270,7 @@ dialog = Dialog(
             Button(Const("👥 Учні"), id="view_students", on_click=on_view_students),
         ),
         Row(
-            Button(Const("🗑 Видалити"), id="del_grp", on_click=on_delete_group),
+            Button(Const("🗑 Видалити групу"), id="del_grp", on_click=on_delete_group),
             Button(Const("← Назад"), id="back_list_g", on_click=on_back_to_list),
         ),
         state=GroupMgmtSG.group_card,
@@ -224,7 +293,7 @@ dialog = Dialog(
         ),
         Button(Const("← Назад"), id="back_name", on_click=lambda c, b, m: m.switch_to(GroupMgmtSG.edit_name)),
         state=GroupMgmtSG.edit_level,
-        getter=lambda **_: {"levels": LEVELS},
+        getter=get_levels,
     ),
     Window(
         Const("📝 Введіть опис групи (необов'язково):"),
@@ -233,21 +302,42 @@ dialog = Dialog(
         state=GroupMgmtSG.edit_desc,
     ),
     Window(
-        Format("👥 Учні групи ({count}):"),
+        Format("👥 Учні групи ({count}):\n(натисніть 🗑 щоб видалити з групи)"),
         ScrollingGroup(
             Select(
                 Format("{item[1]}"),
                 id="grp_students_sel",
                 item_id_getter=lambda x: x[0],
                 items="students",
-                on_click=lambda c, w, m, i: None,
+                on_click=on_remove_student_selected,
             ),
             id="grp_students_scroll",
             width=1,
-            height=10,
+            height=7,
         ),
-        Button(Const("← Назад до групи"), id="back_card_gs", on_click=lambda c, b, m: m.switch_to(GroupMgmtSG.group_card)),
+        Row(
+            Button(Const("➕ Додати учня"), id="add_stud_btn", on_click=on_add_student_click),
+            Button(Const("← Назад до групи"), id="back_card_gs", on_click=lambda c, b, m: m.switch_to(GroupMgmtSG.group_card)),
+        ),
         state=GroupMgmtSG.group_students,
         getter=get_group_students,
+    ),
+    Window(
+        Format("👤 Додати учня до групи ({count} доступно):"),
+        ScrollingGroup(
+            Select(
+                Format("{item[1]}"),
+                id="add_stud_sel",
+                item_id_getter=lambda x: x[0],
+                items="add_students",
+                on_click=on_student_add_selected,
+            ),
+            id="add_stud_scroll",
+            width=1,
+            height=8,
+        ),
+        Button(Const("← Назад"), id="back_to_students", on_click=lambda c, b, m: m.switch_to(GroupMgmtSG.group_students)),
+        state=GroupMgmtSG.add_student,
+        getter=get_all_students_for_add,
     ),
 )

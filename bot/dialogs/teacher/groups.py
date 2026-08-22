@@ -19,6 +19,7 @@ class TeacherGroupSG(StatesGroup):
 
 LEVELS = [
     ("novice", "Новачок"),
+    ("preA1", "Pre A1"),
     ("A1", "A1"),
     ("A2", "A2"),
     ("B1", "B1"),

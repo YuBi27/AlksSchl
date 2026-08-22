@@ -12,27 +12,56 @@ class StudentInfoSG(StatesGroup):
     rules = State()
     prices = State()
     info = State()
+    offer = State()
     teachers = State()
     teacher_card = State()
 
 
 # ── getters ──────────────────────────────────────────────────────────────────
 
+async def _send_media(dialog_manager: DialogManager, file_id: str, file_type: str) -> None:
+    bot = dialog_manager.middleware_data["bot"]
+    event_from_user = dialog_manager.middleware_data["event_from_user"]
+    try:
+        if file_type == "photo":
+            await bot.send_photo(event_from_user.id, file_id)
+        elif file_type == "video":
+            await bot.send_video(event_from_user.id, file_id)
+        elif file_type == "document":
+            await bot.send_document(event_from_user.id, file_id)
+    except Exception:
+        pass
+
+
 async def get_rules(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     content = await api_client.get_content("school_rules")
+    if content.get("file_id"):
+        await _send_media(dialog_manager, content["file_id"], content.get("file_type", "document"))
     return {"content_text": content.get("value", "—")}
 
 
 async def get_prices(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     content = await api_client.get_content("price_list")
+    if content.get("file_id"):
+        await _send_media(dialog_manager, content["file_id"], content.get("file_type", "document"))
     return {"content_text": content.get("value", "—")}
 
 
 async def get_info(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     content = await api_client.get_content("school_info")
+    if content.get("file_id"):
+        await _send_media(dialog_manager, content["file_id"], content.get("file_type", "document"))
+    return {"content_text": content.get("value", "—")}
+
+
+async def get_offer(dialog_manager: DialogManager, **kwargs) -> dict:
+    api_client = dialog_manager.middleware_data["api_client"]
+    content = await api_client.get_content("offer_agreement")
+    if content.get("file_id"):
+        await _send_media(dialog_manager, content["file_id"], content.get("file_type", "document"))
     return {"content_text": content.get("value", "—")}
 
 
@@ -113,6 +142,8 @@ dialog = Dialog(
                on_click=lambda c, b, m: m.switch_to(StudentInfoSG.prices)),
         Button(Const("📍 Контакти"), id="si_info",
                on_click=lambda c, b, m: m.switch_to(StudentInfoSG.info)),
+        Button(Const("📜 Договір-оферта"), id="si_offer",
+               on_click=lambda c, b, m: m.switch_to(StudentInfoSG.offer)),
         Button(Const("👩‍🏫 Викладачі"), id="si_teachers",
                on_click=lambda c, b, m: m.switch_to(StudentInfoSG.teachers)),
         Button(Const("← Меню"), id="si_back_menu", on_click=on_back_to_menu),
@@ -141,6 +172,14 @@ dialog = Dialog(
                on_click=lambda c, b, m: m.switch_to(StudentInfoSG.main)),
         state=StudentInfoSG.info,
         getter=get_info,
+    ),
+    # offer agreement
+    Window(
+        Format("{content_text}"),
+        Button(Const("← Назад"), id="si_back_main_o",
+               on_click=lambda c, b, m: m.switch_to(StudentInfoSG.main)),
+        state=StudentInfoSG.offer,
+        getter=get_offer,
     ),
     # teachers list
     Window(

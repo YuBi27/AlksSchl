@@ -129,7 +129,7 @@ class StudentListItem(BaseModel):
 
 
 class StudentLevelUpdate(BaseModel):
-    level: Literal["novice", "A1", "A2", "B1", "B2", "C1", "C2"]
+    level: Literal["novice", "preA1", "A1", "A2", "B1", "B2", "C1", "C2"]
 
 
 class StudentGroupsUpdate(BaseModel):
@@ -353,12 +353,16 @@ class BotContentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     key: str
     value: str
+    file_id: Optional[str] = None
+    file_type: Optional[str] = None
     updated_at: datetime
 
 
 class BotContentUpdate(BaseModel):
     value: str
     updated_by: Optional[int] = None
+    file_id: Optional[str] = None
+    file_type: Optional[str] = None
 
 
 class PaymentCreate(BaseModel):

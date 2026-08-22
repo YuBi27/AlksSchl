@@ -24,8 +24,9 @@ async def test_stats_counts_students(client: AsyncClient):
     uid1 = u1.json()["id"]
     await client.patch(f"/users/{uid1}/status", json={"status": "active"})
 
-    # Create pending student (default status)
-    await client.post("/auth/start", json={"telegram_id": 333002, "username": "s2"})
+    # Create pending student (submitted an application)
+    u2 = await client.post("/auth/start", json={"telegram_id": 333002, "username": "s2"})
+    await client.patch(f"/users/{u2.json()['id']}/status", json={"status": "pending"})
 
     resp = await client.get("/stats/overview")
     assert resp.status_code == 200

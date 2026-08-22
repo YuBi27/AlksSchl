@@ -6,3 +6,4 @@ aiohttp==3.10.11
 redis[asyncio]==5.2.1
 pydantic-settings==2.6.1
 openpyxl==3.1.5
+tzdata==2024.2

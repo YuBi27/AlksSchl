@@ -73,6 +73,15 @@ async def test_set_level(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_set_level_pre_a1(client: AsyncClient):
+    user = await _make_student(client, 666667, "Мала Соня", "+380996666667")
+    resp = await client.patch(f"/students/{user['id']}/level", json={"level": "preA1"})
+    assert resp.status_code == 204
+    detail = await client.get(f"/students/{user['id']}")
+    assert detail.json()["english_level"] == "preA1"
+
+
+@pytest.mark.asyncio
 async def test_filter_by_level(client: AsyncClient):
     u1 = await _make_student(client, 777777, "Рівень B1", "+380997777771")
     u2 = await _make_student(client, 888888, "Рівень C1", "+380997777772")
@@ -84,12 +93,13 @@ async def test_filter_by_level(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_soft_delete(client: AsyncClient):
+async def test_delete_removes_student(client: AsyncClient):
     user = await _make_student(client, 999999, "Видалений", "+380997777773")
     resp = await client.delete(f"/students/{user['id']}")
     assert resp.status_code == 204
+    # Hard delete: student is gone so they can re-apply from scratch
     detail = await client.get(f"/students/{user['id']}")
-    assert detail.json()["status"] == "inactive"
+    assert detail.status_code == 404
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.db import get_db
@@ -13,15 +14,18 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 
 
 @router.get("")
-async def list_groups(db: AsyncSession = Depends(get_db)):
-    return await get_all_groups(db)
+async def list_groups(
+    teacher_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_all_groups(db, teacher_id=teacher_id)
 
 
 @router.post("", status_code=201, response_model=GroupRead)
 async def create_group_endpoint(
     data: GroupCreate, db: AsyncSession = Depends(get_db)
 ):
-    group = await create_group(db, data.name, data.level, data.description)
+    group = await create_group(db, data.name, data.level, data.description, teacher_id=data.teacher_id)
     return {
         "id": group.id,
         "name": group.name,

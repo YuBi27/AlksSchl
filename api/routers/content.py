@@ -24,7 +24,10 @@ async def upsert_content_endpoint(
     data: BotContentUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await upsert_content(db, key, data.value, data.updated_by)
+    return await upsert_content(
+        db, key, data.value, data.updated_by,
+        file_id=data.file_id, file_type=data.file_type,
+    )
 
 
 @router.get("/teacher-profiles", response_model=list[TeacherProfileOut])

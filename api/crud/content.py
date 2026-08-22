@@ -15,6 +15,8 @@ async def upsert_content(
     key: str,
     value: str,
     updated_by: Optional[int] = None,
+    file_id: Optional[str] = None,
+    file_type: Optional[str] = None,
 ) -> BotContent:
     result = await db.execute(select(BotContent).where(BotContent.key == key))
     existing = result.scalar_one_or_none()
@@ -22,10 +24,15 @@ async def upsert_content(
         existing.value = value
         existing.updated_by = updated_by
         existing.updated_at = datetime.now(tz=timezone.utc)
+        existing.file_id = file_id
+        existing.file_type = file_type
         await db.commit()
         await db.refresh(existing)
         return existing
-    item = BotContent(key=key, value=value, updated_by=updated_by)
+    item = BotContent(
+        key=key, value=value, updated_by=updated_by,
+        file_id=file_id, file_type=file_type,
+    )
     db.add(item)
     await db.commit()
     await db.refresh(item)

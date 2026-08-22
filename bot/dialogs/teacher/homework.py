@@ -12,6 +12,10 @@ KYIV_TZ = ZoneInfo("Europe/Kyiv")
 UTC_TZ = ZoneInfo("UTC")
 
 
+def _trunc(text: str, max_len: int = 58) -> str:
+    return text if len(text) <= max_len else text[:max_len - 1] + "…"
+
+
 class TeacherHomeworkSG(StatesGroup):
     hw_list = State()
     hw_target = State()
@@ -68,8 +72,12 @@ async def on_target_student(callback: CallbackQuery, button: Button, manager: Di
 
 async def get_groups(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
-    groups = await api_client.get_groups()
-    items = [(str(g["id"]), g["name"]) for g in groups]
+    teacher_id = _teacher_id(dialog_manager)
+    own = await api_client.get_groups(teacher_id=teacher_id)
+    all_g = await api_client.get_groups()
+    seen = {g["id"] for g in own}
+    groups = own + [g for g in all_g if g["id"] not in seen and g.get("teacher_id") is None]
+    items = [(str(g["id"]), _trunc(g["name"])) for g in groups]
     return {"groups": items}
 
 
@@ -83,7 +91,7 @@ async def on_group_picked(
 async def get_students(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     students = await api_client.get_students(status="active")
-    items = [(str(s["user_id"]), s["full_name"]) for s in students]
+    items = [(str(s["id"]), _trunc(s.get("full_name") or f"Учень #{s['id']}")) for s in students]
     return {"students": items}
 
 
@@ -146,8 +154,7 @@ async def on_due_date_submitted(
         students = [raw]
 
     for s in students:
-        user = await api_client.get_user(s["user_id"])
-        tg_id = user["telegram_id"]
+        tg_id = s.get("telegram_id") or (await api_client.get_user(s["id"]))["telegram_id"]
         individual_line = "\n👤 Особисте завдання" if not data.get("group_id") else ""
         text_msg = (
             f"📝 Нове домашнє завдання!{individual_line}\n\n"
@@ -161,6 +168,7 @@ async def on_due_date_submitted(
         except Exception:
             pass
 
+    await message.answer(f"✅ Домашнє завдання <b>{hw['title']}</b> створено та надіслано учням", parse_mode="HTML")
     await manager.switch_to(TeacherHomeworkSG.hw_list)
 
 
@@ -180,7 +188,7 @@ async def get_hw_detail(dialog_manager: DialogManager, **kwargs) -> dict:
 
     student_lines = []
     for s in students:
-        uid = s["user_id"]
+        uid = s["id"]
         grade = next((g["grade_text"] for g in grades if g["student_user_id"] == uid), None)
         mark = f"✅ {grade}" if grade else "⏳ без оцінки"
         student_lines.append(f"{s['full_name']}: {mark}")
@@ -214,7 +222,7 @@ async def get_ungraded_students(dialog_manager: DialogManager, **kwargs) -> dict
     else:
         students = []
 
-    ungraded = [(str(s["user_id"]), s["full_name"]) for s in students if s["user_id"] not in graded_ids]
+    ungraded = [(str(s["id"]), s.get("full_name") or f"Учень #{s['id']}") for s in students if s["id"] not in graded_ids]
     return {"ungraded_students": ungraded}
 
 
@@ -244,7 +252,7 @@ async def on_grade_text_submitted(
     teacher_profile = await api_client.get_teacher_profile(teacher_id)
     teacher_name = teacher_profile.get("full_name", "Викладач")
     student = await api_client.get_student(student_id)
-    user = await api_client.get_user(student["user_id"])
+    user = await api_client.get_user(student["id"])
     tg_id = user["telegram_id"]
     try:
         await bot.send_message(
@@ -257,6 +265,7 @@ async def on_grade_text_submitted(
     except Exception:
         pass
 
+    await message.answer(f"✅ Оцінку виставлено: <b>{text}</b>", parse_mode="HTML")
     await manager.switch_to(TeacherHomeworkSG.hw_detail)
 
 

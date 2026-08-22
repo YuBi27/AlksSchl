@@ -13,7 +13,9 @@ async def test_auth_start_creates_student(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["telegram_id"] == 999001
-    assert data["status"] == "pending"
+    # "new" = ще заповнює форму; "pending" ставиться лише після подання заявки,
+    # інакше blocked-роутер перехоплює текстові повідомлення і реєстрація обривається на ПІБ
+    assert data["status"] == "new"
     assert data["role"] == "student"
 
 

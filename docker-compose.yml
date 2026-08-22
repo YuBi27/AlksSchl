@@ -56,10 +56,45 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - web
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - bot
+    networks:
+      - web
+    # Автоматично перезавантажує конфіг кожні 24г (підхоплює оновлені сертифікати)
+    command: >
+      sh -c "while :; do sleep 24h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    # Перевіряє оновлення сертифіката кожні 12 годин
+    entrypoint: >
+      sh -c "trap exit TERM;
+             while :; do
+               certbot renew --webroot -w /var/www/certbot --quiet;
+               sleep 12h & wait $${!};
+             done"
 
 volumes:
   postgres_data:
   redis_data:
+  certbot_www:
+  certbot_conf:
 
 networks:
   internal:
+  web:

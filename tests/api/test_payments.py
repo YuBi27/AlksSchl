@@ -47,15 +47,26 @@ async def test_list_payments_filtered_by_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_debtors_includes_unpaid_active_student(client: AsyncClient):
+async def test_debtors_includes_student_with_overdue_payment(client: AsyncClient):
     user = await client.post("/auth/start", json={"telegram_id": 200003, "username": "debtor1"})
     user_id = user.json()["id"]
     await client.patch(f"/users/{user_id}/status", json={"status": "active"})
+    # Overdue: unpaid payment whose period ended in the past
+    await client.post("/payments", json={
+        "user_id": user_id,
+        "amount": 1500,
+        "period_start": "2025-01-01",
+        "period_end": "2025-01-31",
+        "payment_type": "monthly",
+        "status": "created",
+    })
 
     resp = await client.get("/payments/debtors")
     assert resp.status_code == 200
-    ids = [d["id"] for d in resp.json()]
-    assert user_id in ids
+    debtors = {d["id"]: d for d in resp.json()}
+    assert user_id in debtors
+    assert debtors[user_id]["debt_total"] == 1500.0
+    assert debtors[user_id]["debt_count"] == 1
 
 
 @pytest.mark.asyncio

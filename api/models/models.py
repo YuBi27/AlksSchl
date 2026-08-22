@@ -282,6 +282,8 @@ class BotContent(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     value: Mapped[str] = mapped_column(Text, nullable=False)
+    file_id: Mapped[Optional[str]] = mapped_column(String(256))
+    file_type: Mapped[Optional[str]] = mapped_column(String(16))  # photo / video / document
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

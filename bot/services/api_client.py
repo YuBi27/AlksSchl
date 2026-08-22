@@ -514,16 +514,26 @@ class APIClient:
     async def get_content(self, key: str) -> dict:
         async with self._session.get(f"{self.base_url}/bot-content/{key}") as resp:
             if resp.status == 404:
-                return {"key": key, "value": "Інформація ще не додана."}
+                return {"key": key, "value": "Інформація ще не додана.", "file_id": None, "file_type": None}
             resp.raise_for_status()
             return await resp.json()
 
     async def set_content(
-        self, key: str, value: str, updated_by: Optional[int] = None
+        self,
+        key: str,
+        value: str,
+        updated_by: Optional[int] = None,
+        file_id: Optional[str] = None,
+        file_type: Optional[str] = None,
     ) -> dict:
         async with self._session.put(
             f"{self.base_url}/bot-content/{key}",
-            json={"value": value, "updated_by": updated_by},
+            json={
+                "value": value,
+                "updated_by": updated_by,
+                "file_id": file_id,
+                "file_type": file_type,
+            },
         ) as resp:
             resp.raise_for_status()
             return await resp.json()

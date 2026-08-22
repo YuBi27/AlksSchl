@@ -14,6 +14,7 @@ async def get_lesson(db: AsyncSession, lesson_id: int) -> Optional[Lesson]:
 async def get_lessons(
     db: AsyncSession,
     group_id: Optional[int] = None,
+    student_user_id: Optional[int] = None,
     from_dt: Optional[datetime] = None,
     to_dt: Optional[datetime] = None,
     status: Optional[str] = None,
@@ -21,6 +22,8 @@ async def get_lessons(
     query = select(Lesson).order_by(Lesson.scheduled_at)
     if group_id is not None:
         query = query.where(Lesson.group_id == group_id)
+    if student_user_id is not None:
+        query = query.where(Lesson.student_user_id == student_user_id)
     if from_dt is not None:
         query = query.where(Lesson.scheduled_at >= from_dt)
     if to_dt is not None:
@@ -33,13 +36,15 @@ async def get_lessons(
 
 async def create_lesson(
     db: AsyncSession,
-    group_id: int,
     scheduled_at: datetime,
     duration_min: int = 60,
     zoom_link: Optional[str] = None,
+    group_id: Optional[int] = None,
+    student_user_id: Optional[int] = None,
 ) -> Lesson:
     lesson = Lesson(
         group_id=group_id,
+        student_user_id=student_user_id,
         scheduled_at=scheduled_at,
         duration_min=duration_min,
         zoom_link=zoom_link,

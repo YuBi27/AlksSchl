@@ -2,7 +2,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.kbd import Button
-from aiogram_dialog.widgets.text import Const
+from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.input import TextInput, MessageInput
 
 
@@ -13,6 +13,7 @@ class TeacherRegSG(StatesGroup):
     bio = State()
     specialization = State()
     experience = State()
+    confirm = State()
 
 
 async def on_invite_code(message: Message, widget: TextInput, manager: DialogManager, value: str) -> None:
@@ -57,14 +58,31 @@ async def on_specialization(message: Message, widget: TextInput, manager: Dialog
 
 
 async def on_experience(message: Message, widget: TextInput, manager: DialogManager, value: str) -> None:
-    api_client = manager.middleware_data["api_client"]
-    user_data = manager.middleware_data["user_data"]
-    d = manager.dialog_data
-
     try:
         years = int(value.strip())
     except ValueError:
         years = None
+    manager.dialog_data["experience_years"] = years
+    await manager.switch_to(TeacherRegSG.confirm)
+
+
+async def get_confirm_summary(dialog_manager: DialogManager, **kwargs) -> dict:
+    d = dialog_manager.dialog_data
+    text = (
+        f"📋 Перевірте вашу заявку:\n\n"
+        f"👤 ПІБ: {d.get('full_name', '—')}\n"
+        f"🎓 Спеціалізація: {d.get('specialization', '—')}\n"
+        f"🏆 Досвід: {d.get('experience_years', '—')} р.\n"
+        f"📝 Про себе: {d.get('bio', '—')}\n"
+        f"📷 Фото: {'✅' if d.get('photo_file_id') else 'не завантажено'}"
+    )
+    return {"confirm_text": text}
+
+
+async def on_send_to_admin(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
+    api_client = manager.middleware_data["api_client"]
+    user_data = manager.middleware_data["user_data"]
+    d = manager.dialog_data
 
     await api_client.create_teacher_profile(
         user_data["id"],
@@ -73,23 +91,27 @@ async def on_experience(message: Message, widget: TextInput, manager: DialogMana
             "photo_file_id": d.get("photo_file_id"),
             "bio": d.get("bio"),
             "specialization": d.get("specialization"),
-            "experience_years": years,
+            "experience_years": d.get("experience_years"),
         },
     )
 
-    await api_client.update_status(user_data["id"], "active")
+    await api_client.update_status(user_data["id"], "pending")
 
     bot = manager.middleware_data.get("bot")
     if bot:
         from bot.config import settings
-        notification = f"👩‍🏫 Новий викладач зареєструвався: {d.get('full_name', '—')}"
+        notification = (
+            f"👩‍🏫 Нова заявка викладача на реєстрацію!\n\n"
+            f"👤 ПІБ: {d.get('full_name', '—')}\n"
+            f"🎓 Спеціалізація: {d.get('specialization', '—')}"
+        )
         for admin_id in settings.admin_id_list:
             try:
                 await bot.send_message(admin_id, notification)
             except Exception:
                 pass
 
-    await message.answer("✅ Ваш профіль викладача створено. Ласкаво просимо!")
+    await callback.message.answer("✅ Заявку надіслано адміністратору. Очікуйте підтвердження.")
     await manager.done()
 
 
@@ -124,5 +146,11 @@ dialog = Dialog(
         Const("🏆 Скільки років досвіду? (введіть число):"),
         TextInput(id="exp_input", on_success=on_experience),
         state=TeacherRegSG.experience,
+    ),
+    Window(
+        Format("{confirm_text}"),
+        Button(Const("📤 Надіслати адміну на підтвердження"), id="teacher_send_to_admin", on_click=on_send_to_admin),
+        state=TeacherRegSG.confirm,
+        getter=get_confirm_summary,
     ),
 )

@@ -1,12 +1,17 @@
 import random
 from typing import Optional
-from sqlalchemy import select, or_, delete
+from sqlalchemy import select, or_, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from api.models.models import User, StudentProfile, StudentGroup, Group
+from api.models.models import User, StudentProfile, StudentGroup, Group, InviteCode, AdminActionLog
 
 LEVEL_MAP = {
     "Новачок": "novice",
     "novice": "novice",
+    "Pre A1": "preA1",
+    "pre A1": "preA1",
+    "pre a1": "preA1",
+    "Pre-A1": "preA1",
+    "preA1": "preA1",
     "A1": "A1",
     "A2": "A2",
     "B1": "B1",
@@ -150,7 +155,30 @@ async def soft_delete_student(db: AsyncSession, user_id: int) -> bool:
     user = result.scalar_one_or_none()
     if not user:
         return False
-    user.status = "inactive"
+    # Null out FK columns that lack ondelete to avoid constraint errors.
+    # created_by/admin_id matter too: an ex-admin/teacher demoted to student
+    # may still be referenced by invite codes and admin logs.
+    await db.execute(
+        update(AdminActionLog)
+        .where(AdminActionLog.target_user_id == user_id)
+        .values(target_user_id=None)
+    )
+    await db.execute(
+        update(AdminActionLog)
+        .where(AdminActionLog.admin_id == user_id)
+        .values(admin_id=None)
+    )
+    await db.execute(
+        update(InviteCode)
+        .where(InviteCode.used_by == user_id)
+        .values(used_by=None)
+    )
+    await db.execute(
+        update(InviteCode)
+        .where(InviteCode.created_by == user_id)
+        .values(created_by=None)
+    )
+    await db.delete(user)
     await db.commit()
     return True
 

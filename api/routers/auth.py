@@ -20,5 +20,8 @@ async def auth_start(
     if body.telegram_id in settings.admin_id_list:
         role, status = "admin", "active"
     else:
-        role, status = "student", "pending"
+        # "new" — ще проходить реєстрацію; "pending" ставиться після подання заявки.
+        # Якщо створити одразу "pending", blocked-роутер перехоплює текстові
+        # повідомлення і реєстрація обривається на першому текстовому кроці (ПІБ).
+        role, status = "student", "new"
     return await create_user(db, telegram_id=body.telegram_id, username=body.username, role=role, status=status)

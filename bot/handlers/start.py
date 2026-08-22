@@ -1,14 +1,19 @@
-from aiogram import Router
-from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram import Router, F
+from aiogram.filters import CommandStart, Command
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram_dialog import DialogManager, StartMode
 from bot.dialogs.registration.language import LanguageSG
 
 router = Router()
 
+MENU_KEYBOARD = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="📋 Меню")]],
+    resize_keyboard=True,
+    persistent=True,
+)
 
-@router.message(CommandStart())
-async def cmd_start(message: Message, user_data: dict, dialog_manager: DialogManager):
+
+async def _open_menu(message: Message, user_data: dict, dialog_manager: DialogManager):
     role = user_data.get("role", "student")
     status = user_data.get("status", "pending")
 
@@ -28,3 +33,19 @@ async def cmd_start(message: Message, user_data: dict, dialog_manager: DialogMan
         return
 
     await dialog_manager.start(LanguageSG.select, mode=StartMode.RESET_STACK)
+
+
+@router.message(CommandStart())
+async def cmd_start(message: Message, user_data: dict, dialog_manager: DialogManager):
+    await message.answer("👋", reply_markup=MENU_KEYBOARD)
+    await _open_menu(message, user_data, dialog_manager)
+
+
+@router.message(Command("menu"))
+async def cmd_menu(message: Message, user_data: dict, dialog_manager: DialogManager):
+    await _open_menu(message, user_data, dialog_manager)
+
+
+@router.message(F.text == "📋 Меню")
+async def btn_menu(message: Message, user_data: dict, dialog_manager: DialogManager):
+    await _open_menu(message, user_data, dialog_manager)

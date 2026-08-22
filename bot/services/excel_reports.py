@@ -3,7 +3,7 @@ from datetime import date
 
 
 def generate_analytics_report(
-    financial: dict,
+    financial,   # dict or None — if None, financial sheet is skipped
     attendance: dict,
     performance: dict,
     period_days: int,
@@ -25,73 +25,21 @@ def generate_analytics_report(
     ws["A2"] = f"Дата генерації: {gen_date}"
     ws["A3"] = f"Аналізований період: останні {period_days} днів"
 
-    ws["A5"] = "💰 Фінанси"
-    ws["A5"].font = Font(bold=True)
-    ws["A6"] = f"Підтверджено: {financial.get('total_confirmed', 0):,.0f} грн  ({financial.get('confirmed_count', 0)} оплат)"
-    ws["A7"] = f"Боржників: {financial.get('debtors_count', 0)} учнів"
-
     by_group = attendance.get("by_group", [])
     avg_att = round(sum(g["percent"] for g in by_group) / len(by_group)) if by_group else 0
-    ws["A9"] = "📊 Відвідуваність"
-    ws["A9"].font = Font(bold=True)
-    ws["A10"] = f"Груп проаналізовано: {len(by_group)}"
-    ws["A11"] = f"Середня відвідуваність: {avg_att}%"
+    ws["A5"] = "📊 Відвідуваність"
+    ws["A5"].font = Font(bold=True)
+    ws["A6"] = f"Груп проаналізовано: {len(by_group)}"
+    ws["A7"] = f"Середня відвідуваність: {avg_att}%"
 
     hw = performance.get("homework", {})
     qz = performance.get("quizzes", {})
-    ws["A13"] = "📚 Успішність"
-    ws["A13"].font = Font(bold=True)
-    ws["A14"] = f"ДЗ здано: {hw.get('completion_rate', 0)}%  ({hw.get('submitted_count', 0)}/{hw.get('assigned_count', 0)})"
-    ws["A15"] = f"Тести: {qz.get('avg_score_pct', 0)}% середній результат"
+    ws["A9"] = "📚 Успішність"
+    ws["A9"].font = Font(bold=True)
+    ws["A10"] = f"ДЗ здано: {hw.get('completion_rate', 0)}%  ({hw.get('submitted_count', 0)}/{hw.get('assigned_count', 0)})"
+    ws["A11"] = f"Тести: {qz.get('avg_score_pct', 0)}% середній результат"
 
-    # ---- Sheet 2: Financial ----
-    wf = wb.create_sheet("Фінанси")
-    wf.sheet_properties.tabColor = "2E75B6"
-
-    _header(wf, 1, ["Показник", "Значення"], "1F4E79")
-    fin_rows = [
-        ("Підтверджено (грн)", financial.get("total_confirmed", 0)),
-        ("Очікують підтвердження (грн)", financial.get("total_pending", 0)),
-        ("Відхилено (грн)", financial.get("total_rejected", 0)),
-        ("К-сть підтверджених оплат", financial.get("confirmed_count", 0)),
-        ("К-сть очікуючих оплат", financial.get("pending_count", 0)),
-        ("К-сть боржників", financial.get("debtors_count", 0)),
-        ("Орієнтовна сума боргу (грн)", financial.get("debtors_total_estimate", 0)),
-    ]
-    for i, (label, value) in enumerate(fin_rows, 2):
-        wf.cell(row=i, column=1, value=label)
-        cell_val = round(float(value), 2) if isinstance(value, float) else value
-        wf.cell(row=i, column=2, value=cell_val)
-
-    row = len(fin_rows) + 3
-    wf.cell(row=row, column=1, value="Виручка по місяцях (підтверджені оплати)")
-    wf.cell(row=row, column=1).font = Font(bold=True)
-    row += 1
-    _header(wf, row, ["Місяць", "Виручка (грн)", "К-сть оплат"], "1F4E79")
-    for m in financial.get("monthly_revenue", []):
-        row += 1
-        wf.cell(row=row, column=1, value=m["month"])
-        wf.cell(row=row, column=2, value=round(m["revenue"], 2))
-        wf.cell(row=row, column=3, value=m["count"])
-
-    row += 2
-    wf.cell(row=row, column=1, value="Список боржників")
-    wf.cell(row=row, column=1).font = Font(bold=True)
-    row += 1
-    _header(wf, row, ["Ім'я учня", "Групи", "Остання підтверджена оплата"], "1F4E79")
-    red_fill = PatternFill("solid", fgColor="FCE4D6")
-    for d in financial.get("debtors", []):
-        row += 1
-        wf.cell(row=row, column=1, value=d.get("full_name") or "—")
-        wf.cell(row=row, column=2, value=", ".join(d.get("group_names", [])))
-        last = d.get("last_payment_at")
-        wf.cell(row=row, column=3, value=(last[:10] if last else "Ніколи"))
-        for col in range(1, 4):
-            wf.cell(row=row, column=col).fill = red_fill
-
-    _auto_width(wf)
-
-    # ---- Sheet 3: Attendance ----
+    # ---- Sheet 2: Attendance ----
     wa = wb.create_sheet("Відвідуваність")
     wa.sheet_properties.tabColor = "375623"
 
@@ -121,7 +69,7 @@ def generate_analytics_report(
 
     _auto_width(wa)
 
-    # ---- Sheet 4: Performance ----
+    # ---- Sheet 3: Performance ----
     wp = wb.create_sheet("Успішність")
     wp.sheet_properties.tabColor = "4A235A"
 

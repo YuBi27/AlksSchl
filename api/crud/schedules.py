@@ -1,9 +1,26 @@
 from datetime import datetime, date, time, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.models.models import Schedule, Lesson
+
+
+async def _drop_future_lessons(db: AsyncSession, schedule_id: int) -> None:
+    """Remove future non-completed lessons of a template.
+
+    Used when a template is edited or deleted: stale occurrences must vanish
+    from the schedule entirely (not linger as "cancelled" clutter). Explicitly
+    cancelled single lessons are unaffected — this only runs on template change.
+    """
+    now_utc = datetime.now(tz=ZoneInfo("UTC"))
+    await db.execute(
+        delete(Lesson).where(
+            Lesson.schedule_id == schedule_id,
+            Lesson.scheduled_at > now_utc,
+            Lesson.status != "completed",
+        )
+    )
 
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 WEEKS_AHEAD = 8
@@ -108,13 +125,8 @@ async def update_schedule(
         setattr(schedule, key, value)
     await db.commit()
     await db.refresh(schedule)
-    # Cancel stale future lessons before regenerating
-    now_utc = datetime.now(tz=ZoneInfo("UTC"))
-    await db.execute(
-        update(Lesson)
-        .where(Lesson.schedule_id == schedule_id, Lesson.scheduled_at > now_utc)
-        .values(status="cancelled")
-    )
+    # Stale future lessons must disappear from the schedule, not become "cancelled"
+    await _drop_future_lessons(db, schedule_id)
     await db.commit()
     # Regenerate future lessons only
     await generate_lessons_for_schedule(db, schedule)
@@ -125,12 +137,7 @@ async def delete_schedule(db: AsyncSession, schedule_id: int) -> bool:
     schedule = await get_schedule(db, schedule_id)
     if not schedule:
         return False
-    now_utc = datetime.now(tz=ZoneInfo("UTC"))
-    await db.execute(
-        update(Lesson)
-        .where(Lesson.schedule_id == schedule_id, Lesson.scheduled_at > now_utc)
-        .values(status="cancelled")
-    )
+    await _drop_future_lessons(db, schedule_id)
     schedule.is_active = False
     await db.commit()
     return True

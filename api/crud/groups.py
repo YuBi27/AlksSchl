@@ -9,7 +9,7 @@ async def get_group(db: AsyncSession, group_id: int) -> Optional[Group]:
     return result.scalar_one_or_none()
 
 
-async def get_all_groups(db: AsyncSession) -> list[dict]:
+async def get_all_groups(db: AsyncSession, teacher_id: Optional[int] = None) -> list[dict]:
     stmt = (
         select(
             Group.id,
@@ -23,6 +23,8 @@ async def get_all_groups(db: AsyncSession) -> list[dict]:
         .outerjoin(StudentGroup, StudentGroup.group_id == Group.id)
         .group_by(Group.id)
     )
+    if teacher_id is not None:
+        stmt = stmt.where(Group.teacher_id == teacher_id)
     result = await db.execute(stmt)
     rows = result.all()
     return [
@@ -44,8 +46,9 @@ async def create_group(
     name: str,
     level: Optional[str] = None,
     description: Optional[str] = None,
+    teacher_id: Optional[int] = None,
 ) -> Group:
-    group = Group(name=name, level=level, description=description)
+    group = Group(name=name, level=level, description=description, teacher_id=teacher_id)
     db.add(group)
     await db.commit()
     await db.refresh(group)

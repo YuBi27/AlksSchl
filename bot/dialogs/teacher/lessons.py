@@ -41,10 +41,18 @@ async def on_start(start_data: dict, manager: DialogManager) -> None:
         manager.dialog_data["teacher_override_id"] = start_data["teacher_override_id"]
 
 
+def _trunc(text: str, max_len: int = 58) -> str:
+    return text if len(text) <= max_len else text[:max_len - 1] + "…"
+
+
 async def get_groups(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
-    groups = await api_client.get_groups()
-    items = [(str(g["id"]), g["name"]) for g in groups]
+    teacher_id = _teacher_id(dialog_manager)
+    own = await api_client.get_groups(teacher_id=teacher_id)
+    all_g = await api_client.get_groups()
+    seen = {g["id"] for g in own}
+    groups = own + [g for g in all_g if g["id"] not in seen and g.get("teacher_id") is None]
+    items = [(str(g["id"]), _trunc(g["name"])) for g in groups]
     return {"groups": items}
 
 
@@ -110,9 +118,10 @@ async def get_attendance_students(dialog_manager: DialogManager, **kwargs) -> di
     att_map = {a["student_user_id"]: a["status"] for a in attendances}
     items = []
     for s in students:
-        uid = s["user_id"]
+        uid = s["id"]
         status = att_map.get(uid)
-        label = f"{s['full_name']} — {STATUS_LABELS.get(status, '— Не вказано')}"
+        name = s.get("full_name") or f"Учень #{uid}"
+        label = _trunc(f"{name} — {STATUS_LABELS.get(status, '— ?')}")
         items.append((str(uid), label))
     return {"students": items}
 

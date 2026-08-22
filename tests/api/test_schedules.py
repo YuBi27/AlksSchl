@@ -96,3 +96,55 @@ async def test_generate_upcoming(client: AsyncClient):
     resp = await client.post("/schedules/generate-upcoming")
     assert resp.status_code == 200
     assert "generated" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_update_schedule_removes_stale_future_lessons(client: AsyncClient):
+    """Редагування шаблону: старі майбутні уроки зникають, а не стають cancelled."""
+    group = await _make_group(client, "Група Актуальна")
+    create = await client.post("/schedules", json={
+        "group_id": group["id"], "day_of_week": 1, "start_time": "09:00"
+    })
+    sid = create.json()["id"]
+
+    await client.patch(f"/schedules/{sid}", json={"start_time": "15:00"})
+
+    resp = await client.get(f"/lessons?group_id={group['id']}")
+    lessons = resp.json()
+    assert lessons, "нові уроки мають бути згенеровані"
+    # Жодних cancelled-артефактів і жодного уроку на старий час
+    assert all(l["status"] != "cancelled" for l in lessons)
+    assert all(l["scheduled_at"][11:16] != "09:00" or l["status"] == "completed"
+               for l in lessons if l["schedule_id"] == sid)
+
+
+@pytest.mark.asyncio
+async def test_delete_schedule_removes_future_lessons(client: AsyncClient):
+    """Видалення шаблону: майбутні уроки видаляються, без cancelled-сміття."""
+    group = await _make_group(client, "Група Видалення")
+    create = await client.post("/schedules", json={
+        "group_id": group["id"], "day_of_week": 5, "start_time": "12:00"
+    })
+    sid = create.json()["id"]
+
+    await client.delete(f"/schedules/{sid}")
+
+    resp = await client.get(f"/lessons?group_id={group['id']}")
+    future_from_template = [l for l in resp.json() if l["schedule_id"] == sid]
+    assert future_from_template == []
+
+
+@pytest.mark.asyncio
+async def test_cancelled_single_lesson_stays_cancelled(client: AsyncClient):
+    """Явно скасований окремий урок залишається в базі зі статусом cancelled."""
+    group = await _make_group(client, "Група Скасування")
+    create = await client.post("/schedules", json={
+        "group_id": group["id"], "day_of_week": 0, "start_time": "10:00"
+    })
+    resp = await client.get(f"/lessons?group_id={group['id']}")
+    lesson_id = resp.json()[0]["id"]
+
+    await client.delete(f"/lessons/{lesson_id}")
+
+    detail = await client.get(f"/lessons/{lesson_id}")
+    assert detail.json()["status"] == "cancelled"

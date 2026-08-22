@@ -8,15 +8,10 @@ from aiogram_dialog.widgets.text import Const, Format
 
 class AdminStatsSG(StatesGroup):
     overview = State()
-    financial = State()
     att_groups = State()
     att_students = State()
     performance = State()
     pick_group = State()
-
-
-def _fmt_money(val: float) -> str:
-    return f"{val:,.0f} грн".replace(",", " ")
 
 
 def _period(manager: DialogManager) -> int:
@@ -50,24 +45,6 @@ async def get_overview(dialog_manager: DialogManager, **kwargs) -> dict:
         "overdue_homework": data.get("overdue_homework", 0),
         "hw_due_this_week": data.get("hw_due_this_week", 0),
         "att_lines": att_lines,
-    }
-
-
-async def get_financial(dialog_manager: DialogManager, **kwargs) -> dict:
-    api_client = dialog_manager.middleware_data["api_client"]
-    days = _period(dialog_manager)
-    data = await api_client.get_financial_stats(days=days)
-    return {
-        "days": days,
-        "total_confirmed": _fmt_money(data.get("total_confirmed", 0)),
-        "confirmed_count": data.get("confirmed_count", 0),
-        "total_pending": _fmt_money(data.get("total_pending", 0)),
-        "pending_count": data.get("pending_count", 0),
-        "total_rejected": _fmt_money(data.get("total_rejected", 0)),
-        "rejected_count": data.get("rejected_count", 0),
-        "debtors_count": data.get("debtors_count", 0),
-        "debtors_estimate": _fmt_money(data.get("debtors_total_estimate", 0)),
-        "_raw": data,
     }
 
 
@@ -131,10 +108,6 @@ async def get_pick_group(dialog_manager: DialogManager, **kwargs) -> dict:
 
 # ---- Handlers ----
 
-async def on_go_financial(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
-    await manager.switch_to(AdminStatsSG.financial)
-
-
 async def on_go_att(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     await manager.switch_to(AdminStatsSG.att_groups)
 
@@ -156,15 +129,6 @@ async def _set_period(manager: DialogManager, days: int, state: State) -> None:
     manager.dialog_data["period_days"] = days
     await manager.switch_to(state)
 
-
-async def on_period_30_fin(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
-    await _set_period(manager, 30, AdminStatsSG.financial)
-
-async def on_period_60_fin(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
-    await _set_period(manager, 60, AdminStatsSG.financial)
-
-async def on_period_90_fin(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
-    await _set_period(manager, 90, AdminStatsSG.financial)
 
 async def on_period_30_att(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     await _set_period(manager, 30, AdminStatsSG.att_groups)
@@ -223,19 +187,15 @@ async def _send_excel(callback: CallbackQuery, manager: DialogManager) -> None:
     days = _period(manager)
     gid = _group_id(manager)
 
-    financial = await api_client.get_financial_stats(days=days)
     attendance = await api_client.get_attendance_stats(days=days, group_id=gid)
     performance = await api_client.get_performance_stats(days=days, group_id=gid)
 
-    xlsx = generate_analytics_report(financial, attendance, performance, days)
+    xlsx = generate_analytics_report(None, attendance, performance, days)
     from datetime import date
     filename = f"analytics_{date.today().isoformat()}.xlsx"
     file = BufferedInputFile(xlsx, filename=filename)
     await callback.message.answer_document(file, caption=f"📊 Аналітика за {days} днів")
 
-
-async def on_excel_financial(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
-    await _send_excel(callback, manager)
 
 async def on_excel_att(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     await _send_excel(callback, manager)
@@ -259,33 +219,12 @@ dialog = Dialog(
             "📊 Відвідуваність (30 днів):\n{att_lines}"
         ),
         Row(
-            Button(Const("💰 Фінанси"), id="go_fin", on_click=on_go_financial),
             Button(Const("📊 Відвідуваність"), id="go_att", on_click=on_go_att),
+            Button(Const("📚 Успішність"),    id="go_perf", on_click=on_go_perf),
         ),
-        Button(Const("📚 Успішність"), id="go_perf", on_click=on_go_perf),
         Button(Const("← Меню"), id="stats_back_menu", on_click=on_back_to_menu),
         state=AdminStatsSG.overview,
         getter=get_overview,
-    ),
-    Window(
-        Format(
-            "💰 Фінанси ({days} днів)\n\n"
-            "✅ Підтверджено: {total_confirmed} ({confirmed_count} оплат)\n"
-            "⏳ Очікують: {total_pending} ({pending_count} оплат)\n"
-            "❌ Відхилено: {total_rejected} ({rejected_count} оплат)\n\n"
-            "👤 Боржників: {debtors_count} (~{debtors_estimate})"
-        ),
-        Row(
-            Button(Const("30д"), id="fin_30", on_click=on_period_30_fin),
-            Button(Const("60д"), id="fin_60", on_click=on_period_60_fin),
-            Button(Const("90д"), id="fin_90", on_click=on_period_90_fin),
-        ),
-        Row(
-            Button(Const("📥 Excel-звіт"), id="fin_excel", on_click=on_excel_financial),
-            Button(Const("← Назад"), id="fin_back", on_click=on_back_overview),
-        ),
-        state=AdminStatsSG.financial,
-        getter=get_financial,
     ),
     Window(
         Format(

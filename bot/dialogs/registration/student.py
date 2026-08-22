@@ -2,7 +2,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, Row
-from aiogram_dialog.widgets.text import Const
+from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.input import TextInput
 
 
@@ -16,6 +16,7 @@ class StudentRegSG(StatesGroup):
     start_month = State()
     study_format = State()
     extra_info = State()
+    confirm = State()
 
 
 async def on_has_invite(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
@@ -70,11 +71,33 @@ async def on_format_selected(callback: CallbackQuery, button: Button, manager: D
 
 async def on_extra_info(message: Message, widget: TextInput, manager: DialogManager, value: str) -> None:
     manager.dialog_data["extra_info"] = value
-    await _submit_registration(manager)
+    await manager.switch_to(StudentRegSG.confirm)
 
 
 async def on_skip_extra(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     manager.dialog_data["extra_info"] = None
+    await manager.switch_to(StudentRegSG.confirm)
+
+
+async def get_confirm_summary(dialog_manager: DialogManager, **kwargs) -> dict:
+    d = dialog_manager.dialog_data
+    fmt = d.get("study_format", "—")
+    fmt_ua = {"online": "Онлайн", "offline": "Офлайн", "hybrid": "Гібрид"}.get(fmt, fmt)
+    text = (
+        f"📋 Перевірте вашу заявку:\n\n"
+        f"👤 ПІБ: {d.get('full_name', '—')}\n"
+        f"🎂 Дата народження: {d.get('birth_date_str', '—')}\n"
+        f"📱 Телефон: {d.get('phone', '—')}\n"
+        f"👨‍👩‍👧 ПІБ батьків: {d.get('parent_name', '—')}\n"
+        f"📱 Тел. батьків: {d.get('parent_phone', '—')}\n"
+        f"📅 Початок навчання: {d.get('study_start_month', '—')}\n"
+        f"🎓 Формат: {fmt_ua}\n"
+        f"💬 Додатково: {d.get('extra_info') or '—'}"
+    )
+    return {"confirm_text": text}
+
+
+async def on_send_to_admin(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
     await _submit_registration(manager)
 
 
@@ -114,6 +137,8 @@ async def _submit_registration(manager: DialogManager) -> None:
         },
     )
 
+    await api_client.update_status(user_data["id"], "pending")
+
     await api_client.log_admin_action(
         admin_id=0,
         action="new_student_application",
@@ -125,7 +150,7 @@ async def _submit_registration(manager: DialogManager) -> None:
     if bot:
         from bot.config import settings
         notification = (
-            f"📩 Нова заявка на реєстрацію!\n\n"
+            f"📩 Нова заявка учня на реєстрацію!\n\n"
             f"👤 ПІБ: {d.get('full_name', '—')}\n"
             f"📱 Телефон: {d.get('phone', '—')}\n"
             f"🎓 Формат: {d.get('study_format', '—')}"
@@ -192,5 +217,11 @@ dialog = Dialog(
         TextInput(id="extra_info_input", on_success=on_extra_info),
         Button(Const("⏭ Пропустити"), id="skip_extra", on_click=on_skip_extra),
         state=StudentRegSG.extra_info,
+    ),
+    Window(
+        Format("{confirm_text}"),
+        Button(Const("📤 Надіслати адміну на підтвердження"), id="send_to_admin", on_click=on_send_to_admin),
+        state=StudentRegSG.confirm,
+        getter=get_confirm_summary,
     ),
 )

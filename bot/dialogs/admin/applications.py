@@ -16,9 +16,11 @@ async def get_pending_applications(dialog_manager: DialogManager, **kwargs) -> d
     apps = await api_client.get_pending_applications()
     items = []
     for a in apps:
-        profile = a.get("student_profile") or {}
-        name = profile.get("full_name", f"Учень #{a['id']}")
-        items.append((str(a["id"]), name))
+        username = a.get("username")
+        display = f"@{username}" if username else f"ID {a['telegram_id']}"
+        role = a.get("role", "student")
+        role_emoji = "👩‍🏫" if role == "teacher" else "🎓"
+        items.append((str(a["id"]), f"{role_emoji} {display}"))
     return {"applications": items, "count": len(apps)}
 
 
@@ -35,17 +37,48 @@ async def on_select_application(
 async def get_application_detail(dialog_manager: DialogManager, **kwargs) -> dict:
     api_client = dialog_manager.middleware_data["api_client"]
     user_id = dialog_manager.dialog_data.get("selected_user_id", 0)
-    apps = await api_client.get_pending_applications()
-    user = next((a for a in apps if a["id"] == user_id), {})
-    profile = user.get("student_profile") or {}
-    return {
-        "full_name": profile.get("full_name", "—"),
-        "phone": profile.get("phone", "—"),
-        "study_format": profile.get("study_format", "—"),
-        "start_month": profile.get("study_start_month", "—"),
-        "user_id": user_id,
-        "telegram_id": user.get("telegram_id", 0),
-    }
+    user = await api_client.get_user(user_id)
+    username = user.get("username")
+    tg_display = f"@{username}" if username else f"ID {user.get('telegram_id', '—')}"
+    role = user.get("role", "student")
+
+    if role == "teacher":
+        try:
+            profile = await api_client.get_teacher_profile(user_id)
+        except Exception:
+            profile = {}
+        detail = (
+            f"👩‍🏫 Заявка ВИКЛАДАЧА\n\n"
+            f"👤 ПІБ: {profile.get('full_name') or '—'}\n"
+            f"🎓 Спеціалізація: {profile.get('specialization') or '—'}\n"
+            f"🏆 Досвід: {profile.get('experience_years') or '—'} р.\n"
+            f"📝 Про себе: {profile.get('bio') or '—'}\n"
+            f"✈️ Telegram: {tg_display}"
+        )
+        return {
+            "detail_text": detail,
+            "user_id": user_id,
+        }
+    else:
+        profile = await api_client.get_user_student_profile(user_id)
+        fmt_map = {"online": "💻 Онлайн", "offline": "🏫 Офлайн", "hybrid": "🔄 Гібрид"}
+        study_format = fmt_map.get(profile.get("study_format", ""), profile.get("study_format") or "—")
+        detail = (
+            f"📩 Заявка УЧНЯ\n\n"
+            f"👤 ПІБ: {profile.get('full_name') or '—'}\n"
+            f"🎂 Дата народження: {profile.get('birth_date') or '—'}\n"
+            f"📱 Телефон: {profile.get('phone') or '—'}\n"
+            f"👨‍👩‍👧 Батько/мати: {profile.get('parent_name') or '—'}\n"
+            f"📱 Тел. батьків: {profile.get('parent_phone') or '—'}\n"
+            f"🎓 Формат: {study_format}\n"
+            f"📅 Початок: {profile.get('study_start_month') or '—'}\n"
+            f"💬 Додатково: {profile.get('extra_info') or '—'}\n"
+            f"✈️ Telegram: {tg_display}"
+        )
+        return {
+            "detail_text": detail,
+            "user_id": user_id,
+        }
 
 
 async def on_approve(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
@@ -54,20 +87,25 @@ async def on_approve(callback: CallbackQuery, button: Button, manager: DialogMan
     user_id = manager.dialog_data["selected_user_id"]
 
     await api_client.update_status(user_id, "active")
-    await api_client.log_admin_action(admin_data["id"], "approve_student", user_id)
+    await api_client.log_admin_action(admin_data["id"], "approve_user", user_id)
 
     user_detail = await api_client.get_user(user_id)
+    role = user_detail.get("role", "student")
     bot = manager.middleware_data.get("bot")
     if bot:
+        msg = (
+            "🎉 Вашу заявку підтверджено! Ласкаво просимо до школи."
+            if role != "teacher"
+            else "🎉 Вашу заявку викладача підтверджено! Тепер ви можете користуватися панеллю викладача."
+        )
         try:
-            await bot.send_message(
-                user_detail["telegram_id"],
-                "🎉 Вашу заявку підтверджено! Ласкаво просимо до школи.",
-            )
+            await bot.send_message(user_detail["telegram_id"], msg)
         except Exception:
             pass
 
-    await callback.answer("✅ Заявку підтверджено")
+    role_label = "викладача" if role == "teacher" else "учня"
+    await callback.answer(f"✅ Заявку {role_label} підтверджено")
+    await callback.message.answer(f"✅ Заявку {role_label} підтверджено та активовано")
     await manager.switch_to(AdminAppSG.list_view)
 
 
@@ -77,7 +115,7 @@ async def on_reject(callback: CallbackQuery, button: Button, manager: DialogMana
     user_id = manager.dialog_data["selected_user_id"]
 
     await api_client.update_status(user_id, "inactive")
-    await api_client.log_admin_action(admin_data["id"], "reject_student", user_id)
+    await api_client.log_admin_action(admin_data["id"], "reject_user", user_id)
 
     user_detail = await api_client.get_user(user_id)
     bot = manager.middleware_data.get("bot")
@@ -91,6 +129,7 @@ async def on_reject(callback: CallbackQuery, button: Button, manager: DialogMana
             pass
 
     await callback.answer("❌ Заявку відхилено")
+    await callback.message.answer("❌ Заявку відхилено")
     await manager.switch_to(AdminAppSG.list_view)
 
 
@@ -117,13 +156,7 @@ dialog = Dialog(
         getter=get_pending_applications,
     ),
     Window(
-        Format(
-            "📩 Заявка #{user_id}\n\n"
-            "👤 ПІБ: {full_name}\n"
-            "📱 Телефон: {phone}\n"
-            "🎓 Формат: {study_format}\n"
-            "📅 Початок: {start_month}"
-        ),
+        Format("{detail_text}"),
         Button(Const("✅ Підтвердити"), id="approve", on_click=on_approve),
         Button(Const("❌ Відхилити"), id="reject", on_click=on_reject),
         Button(Const("← Назад"), id="back_list", on_click=on_back_to_list),
