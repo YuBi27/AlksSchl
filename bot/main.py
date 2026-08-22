@@ -136,7 +136,14 @@ async def main():
         setup_application(app, dp, bot=bot)
 
         logger.info(f"Starting webhook on {settings.webhook_host}:{settings.webhook_port}")
-        web.run_app(app, host=settings.webhook_host, port=settings.webhook_port)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, host=settings.webhook_host, port=settings.webhook_port)
+        await site.start()
+
+        # Тримаємо процес живим
+        await asyncio.Event().wait()
     else:
         # --- Polling mode (fallback) ---
         try:
