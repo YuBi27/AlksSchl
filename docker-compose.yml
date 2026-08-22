@@ -72,6 +72,7 @@ services:
       - bot
     networks:
       - web
+      - internal
     # Автоматично перезавантажує конфіг кожні 24г (підхоплює оновлені сертифікати)
     command: >
       sh -c "while :; do sleep 24h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
