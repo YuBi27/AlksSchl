@@ -9,21 +9,9 @@ EMAIL="your@email.com"   # <-- замініть на ваш email для спо�
 
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.dev.yml"
 
-echo "=== Крок 1: Завантажуємо рекомендовані параметри TLS від certbot ==="
-$COMPOSE run --rm certbot sh -c "
-  if [ ! -f /etc/letsencrypt/options-ssl-nginx.conf ]; then
-    curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf \
-      -o /etc/letsencrypt/options-ssl-nginx.conf
-  fi
-  if [ ! -f /etc/letsencrypt/ssl-dhparams.pem ]; then
-    openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048
-  fi
-"
-
-echo "=== Крок 2: Стартуємо nginx (тільки HTTP, без SSL блоку) ==="
-# Тимчасово коментуємо HTTPS-блок щоб nginx стартував без сертифіката
+echo "=== Крок 1: Стартуємо nginx (тільки HTTP, без SSL блоку) ==="
 cp nginx/conf.d/app.conf nginx/conf.d/app.conf.bak
-cat > nginx/conf.d/app.conf.tmp << 'EOF'
+cat > nginx/conf.d/app.conf << 'EOF'
 server {
     listen 80;
     server_name aleksylya.pp.ua;
@@ -38,12 +26,17 @@ server {
     }
 }
 EOF
-mv nginx/conf.d/app.conf.tmp nginx/conf.d/app.conf
 
 $COMPOSE up -d nginx
+$COMPOSE exec nginx nginx -t
 
-echo "=== Крок 3: Отримуємо сертифікат ==="
-$COMPOSE run --rm certbot certonly \
+echo "=== Перевіряємо HTTP ==="
+curl -I http://aleksylya.pp.ua
+
+echo "=== Крок 2: Отримуємо сертифікат ==="
+$COMPOSE run --rm \
+  --entrypoint certbot \
+  certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   --email "$EMAIL" \
@@ -51,13 +44,16 @@ $COMPOSE run --rm certbot certonly \
   --no-eff-email \
   -d "$DOMAIN"
 
-echo "=== Крок 4: Відновлюємо повний nginx конфіг ==="
+echo "=== Крок 3: Відновлюємо повний nginx конфіг з SSL ==="
 cp nginx/conf.d/app.conf.bak nginx/conf.d/app.conf
 rm nginx/conf.d/app.conf.bak
 
-echo "=== Крок 5: Перезавантажуємо nginx з SSL ==="
 $COMPOSE restart nginx
+$COMPOSE exec nginx nginx -t
 
 echo ""
-echo "✅ Готово! Сертифікат отримано."
-echo "   Тепер запустіть: make up"
+echo "=== Перевіряємо HTTPS ==="
+curl -Iv https://aleksylya.pp.ua
+
+echo ""
+echo "✅ Готово! Тепер запустіть: make up"
