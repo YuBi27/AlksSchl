@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 8080
 
-    ofert_pdf_path: str = "ofert.pdf"
+    ofert_pdf_path: str = "/app/ofert.pdf"
 
     @property
     def OFERT_PDF_PATH(self) -> str:

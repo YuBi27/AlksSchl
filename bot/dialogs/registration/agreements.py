@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, FSInputFile
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
@@ -5,6 +7,8 @@ from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.text import Const
 
 from bot.config import settings
+
+OFERT_PDF_PATH = Path(settings.ofert_pdf_path)
 
 
 class AgreementSG(StatesGroup):
@@ -41,7 +45,7 @@ async def on_agree_contract(callback: CallbackQuery, button: Button, manager: Di
 
 
 async def on_show_contract(callback: CallbackQuery, button: Button, manager: DialogManager) -> None:
-    pdf = FSInputFile(settings.OFERT_PDF_PATH, filename="ofert.pdf")
+    pdf = FSInputFile(OFERT_PDF_PATH, filename="ofert.pdf")
     await callback.message.answer_document(pdf, caption="📄 Договір-оферта")
 
 
