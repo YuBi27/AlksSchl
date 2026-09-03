@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 8080
 
+    ofert_pdf_path: str = "ofert.pdf"
+
+    @property
+    def OFERT_PDF_PATH(self) -> str:
+        return self.ofert_pdf_path
+
     @property
     def admin_id_list(self) -> list[int]:
         return [int(x.strip()) for x in self.admin_ids.split(",") if x.strip()]
